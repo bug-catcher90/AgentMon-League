@@ -1,0 +1,272 @@
+// Agentmon League - Prisma Schema
+// Backend is authoritative for world, agents, battles, tournaments.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Agent {
+  id              String    @id @default(cuid())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Moltbook identity (optional)
+  moltbookAgentId String?   @unique
+  handle          String?   // from Moltbook
+  displayName     String?
+  avatarUrl       String?
+
+  // Local auth
+  apiKeyHash      String?   // bcrypt hash, never store plain key
+  apiKeyPrefix    String?   // first 8 chars for lookup
+
+  // Relations
+  state           AgentState?
+  profile         AgentProfile?
+  matchesAsA      Match[]   @relation("MatchAgentA")
+  matchesAsB      Match[]   @relation("MatchAgentB")
+  eventLogs       EventLog[]
+  gymWaitlist     GymWaitlistEntry[]
+  leaderboard     LeaderboardEntry?
+  emulatorExperiences AgentEmulatorExperience[]
+  emulatorSaves      AgentEmulatorSave[]
+  publishedModels    PublishedModel[]
+  publishedDatasets  PublishedDataset[]
+}
+
+// Published RL model (checkpoint) for others to download and use. Blob stored on filesystem or object storage.
+model PublishedModel {
+  id          String   @id @default(cuid())
+  agentId     String
+  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  label       String   // e.g. "best_model", "v1"
+  version     String?  // optional semver or tag
+  description String?  @default("")
+  storageKey  String   // relative path or S3 key, e.g. "agents/{agentId}/models/{id}.zip"
+  byteSize    Int      @default(0)
+  createdAt   DateTime @default(now())
+  @@index([agentId])
+}
+
+// Published training dataset (e.g. experience replay, trajectories) for others to use.
+model PublishedDataset {
+  id          String   @id @default(cuid())
+  agentId     String
+  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  label       String   // e.g. "episodes_1k"
+  version     String?
+  description String?  @default("")
+  format      String?  @default("jsonl") // jsonl, etc.
+  storageKey  String
+  byteSize    Int      @default(0)
+  createdAt   DateTime @default(now())
+  @@index([agentId])
+}
+
+model AgentState {
+  id            String   @id @default(cuid())
+  agentId       String   @unique
+  agent         Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  worldId       String
+  world         World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
+
+  x             Int      @default(0)
+  y             Int      @default(0)
+  direction     String   @default("down") // up, down, left, right
+
+  // Layered map: overworld area (city/route/cave) and block position
+  regionId      String?
+  areaX         Int?     // block X in area
+  areaY         Int?     // block Y in area
+  // When inside a building
+  interiorId    String?
+  interiorX     Int?
+  interiorY     Int?
+
+  level         Int      @default(1)
+  xp            Int      @default(0)
+  gold          Int      @default(0)
+
+  badges        Json     @default("[]") // string[] badge ids
+  pokedex       Json     @default("{\"seen\":[],\"owned\":[]}") // { seen: string[], owned: string[] }
+  inventory     Json     @default("[]") // { itemId, count }[] max 16 slots
+  party         Json     @default("[]") // CreatureInstance[] max 6
+  storage       Json     @default("[]") // CreatureInstance[]
+
+  currentMatchId String?
+  currentMatch   Match?   @relation(fields: [currentMatchId], references: [id])
+  updatedAt     DateTime @updatedAt
+
+  @@index([worldId, x, y])
+  @@index([worldId, regionId])
+  @@index([agentId])
+}
+
+model AgentProfile {
+  id                    String   @id @default(cuid())
+  agentId                String   @unique
+  agent                 Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  name                  String
+  level                 Int      @default(1)
+  badges                Json     @default("[]")
+  pokedexSeenCount      Int      @default(0)
+  pokedexOwnedCount     Int      @default(0)
+  wins                  Int      @default(0)
+  losses                Int      @default(0)
+  gymWins               Int      @default(0)
+  leagueWins            Int      @default(0)
+  totalPlaytimeSeconds  Int      @default(0)  // cumulative from ended sessions
+  updatedAt             DateTime @updatedAt
+}
+
+model World {
+  id        String    @id @default(cuid())
+  name      String
+  width     Int
+  height    Int
+  mapData   Json      // { tiles: Record<string, TileData> }
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  states    AgentState[]
+  gyms      Gym[]
+}
+
+enum MatchType {
+  WILD
+  TRAINER
+  GYM
+  LEAGUE
+}
+
+enum MatchStatus {
+  ACTIVE
+  COMPLETED
+  ABORTED
+}
+
+model Match {
+  id         String      @id @default(cuid())
+  type       MatchType
+  status     MatchStatus @default(ACTIVE)
+  agentAId   String
+  agentA     Agent       @relation("MatchAgentA", fields: [agentAId], references: [id])
+  agentBId   String?     // null for WILD (wild creature is simulated)
+  agentB     Agent?      @relation("MatchAgentB", fields: [agentBId], references: [id])
+  gymId      String?
+  gym        Gym?        @relation(fields: [gymId], references: [id])
+  state      Json        // BattleState
+  transcript Json        @default("[]") // string[]
+  winnerId   String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  agentStatesInMatch AgentState[]
+  gymMatch           GymMatch?
+}
+
+model Gym {
+  id        String   @id @default(cuid())
+  worldId   String
+  world     World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  name      String
+  cityName  String
+  badgeId   String   // e.g. "boulder", "cascade"
+  x         Int
+  y         Int
+  region    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  matches     Match[]
+  waitlist    GymWaitlistEntry[]
+  tournaments GymTournament[]
+}
+
+model GymWaitlistEntry {
+  id        String   @id @default(cuid())
+  gymId     String
+  gym       Gym      @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  rankScore Int      @default(0) // used to pick top 24
+  joinedAt  DateTime @default(now())
+
+  @@unique([gymId, agentId])
+  @@index([gymId])
+}
+
+model GymTournament {
+  id        String   @id @default(cuid())
+  gymId     String
+  gym       Gym      @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  status    String   @default("pending") // pending, in_progress, completed
+  bracket   Json     @default("{}") // bracket state
+  winnerId  String?
+  startedAt DateTime @default(now())
+  endedAt   DateTime?
+
+  matches   GymMatch[]
+  @@index([gymId, startedAt])
+}
+
+model GymMatch {
+  id             String   @id @default(cuid())
+  tournamentId   String
+  tournament     GymTournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  matchId        String   @unique
+  match          Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  round          Int      // 1=Ro16, 2=QF, 3=SF, 4=Final
+  slot           Int      // position in round
+  createdAt      DateTime @default(now())
+}
+
+model LeaderboardEntry {
+  id        String   @id @default(cuid())
+  agentId   String   @unique
+  agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  score     Int      @default(0)
+  rank      Int      @default(0)
+  updatedAt DateTime @updatedAt
+  @@index([score])
+}
+
+model EventLog {
+  id        String   @id @default(cuid())
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  matchId   String?
+  line      String   // transcript line
+  createdAt DateTime @default(now())
+  @@index([agentId, createdAt])
+}
+
+// Agent’s experience from playing the emulator: state + action + outcome for learning.
+model AgentEmulatorExperience {
+  id           String   @id @default(cuid())
+  agentId      String
+  agent        Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  stepIndex    Int      @default(0)   // step number in session
+  stateBefore  Json     // game state before action (mapName, x, y, partySize, etc.)
+  action       String   // up, down, left, right, a, b, start, select, pass
+  stateAfter   Json     // game state after action (feedback)
+  createdAt    DateTime @default(now())
+  @@index([agentId, createdAt])
+  @@index([agentId, stepIndex])
+}
+
+// Saved game sessions (PyBoy state blob). Agents can save current game and load a previous session on start.
+model AgentEmulatorSave {
+  id        String   @id @default(cuid())
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  label     String?  // optional label, e.g. "after first gym"
+  state     Bytes    // PyBoy save state (bytea)
+  createdAt DateTime @default(now())
+  @@index([agentId, createdAt])
+}

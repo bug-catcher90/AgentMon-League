@@ -1,0 +1,21 @@
+{
+  "id": "rival_house",
+  "name": "Rival House",
+  "type": "house",
+  "widthBlocks": 6,
+  "heightBlocks": 8,
+  "tiles": [
+    "floor","floor","floor","floor","floor","floor",
+    "floor","floor","floor","floor","floor","floor",
+    "floor","floor","floor","floor","floor","floor",
+    "floor","floor","floor","floor","floor","floor",
+    "floor","floor","floor","floor","floor","floor",
+    "floor","floor","floor","floor","floor","floor",
+    "floor","floor","floor","mat","mat","floor",
+    "floor","floor","door","door","floor","floor"
+  ],
+  "warps": [
+    { "blockX": 2, "blockY": 7, "type": "region", "targetId": "pallet_town", "targetBlockX": 7, "targetBlockY": 5, "name": "Exit to Pallet Town" },
+    { "blockX": 3, "blockY": 7, "type": "region", "targetId": "pallet_town", "targetBlockX": 7, "targetBlockY": 5, "name": "Exit to Pallet Town" }
+  ]
+}

@@ -1,0 +1,866 @@
+{
+  "route_1_grass": [
+    {
+      "speciesId": "pidgey",
+      "weight": 120
+    },
+    {
+      "speciesId": "rattata",
+      "weight": 68
+    },
+    {
+      "speciesId": "spearow",
+      "weight": 146
+    },
+    {
+      "speciesId": "ekans",
+      "weight": 22
+    },
+    {
+      "speciesId": "sandshrew",
+      "weight": 22
+    },
+    {
+      "speciesId": "poliwag",
+      "weight": 300
+    },
+    {
+      "speciesId": "poliwhirl",
+      "weight": 50
+    },
+    {
+      "speciesId": "slowpoke",
+      "weight": 50
+    },
+    {
+      "speciesId": "voltorb",
+      "weight": 32
+    },
+    {
+      "speciesId": "goldeen",
+      "weight": 552
+    },
+    {
+      "speciesId": "magikarp",
+      "weight": 1652
+    },
+    {
+      "speciesId": "shellder",
+      "weight": 50
+    },
+    {
+      "speciesId": "drowzee",
+      "weight": 13
+    },
+    {
+      "speciesId": "krabby",
+      "weight": 102
+    },
+    {
+      "speciesId": "oddish",
+      "weight": 48
+    },
+    {
+      "speciesId": "gloom",
+      "weight": 0
+    },
+    {
+      "speciesId": "venonat",
+      "weight": 32
+    },
+    {
+      "speciesId": "bellsprout",
+      "weight": 48
+    },
+    {
+      "speciesId": "weepinbell",
+      "weight": 0
+    },
+    {
+      "speciesId": "tentacool",
+      "weight": 52
+    },
+    {
+      "speciesId": "snorlax",
+      "weight": 400
+    },
+    {
+      "speciesId": "ditto",
+      "weight": 14
+    },
+    {
+      "speciesId": "pidgeotto",
+      "weight": 2
+    },
+    {
+      "speciesId": "raticate",
+      "weight": 27
+    },
+    {
+      "speciesId": "doduo",
+      "weight": 39
+    },
+    {
+      "speciesId": "fearow",
+      "weight": 6
+    }
+  ],
+  "route_2_grass": [
+    {
+      "speciesId": "caterpie",
+      "weight": 10
+    },
+    {
+      "speciesId": "weedle",
+      "weight": 10
+    },
+    {
+      "speciesId": "pidgey",
+      "weight": 72
+    },
+    {
+      "speciesId": "rattata",
+      "weight": 91
+    },
+    {
+      "speciesId": "poliwag",
+      "weight": 450
+    },
+    {
+      "speciesId": "tentacool",
+      "weight": 400
+    },
+    {
+      "speciesId": "shellder",
+      "weight": 26
+    },
+    {
+      "speciesId": "horsea",
+      "weight": 26
+    },
+    {
+      "speciesId": "goldeen",
+      "weight": 758
+    },
+    {
+      "speciesId": "staryu",
+      "weight": 26
+    },
+    {
+      "speciesId": "magikarp",
+      "weight": 1200
+    },
+    {
+      "speciesId": "pidgeotto",
+      "weight": 5
+    },
+    {
+      "speciesId": "raticate",
+      "weight": 5
+    },
+    {
+      "speciesId": "tangela",
+      "weight": 2
+    },
+    {
+      "speciesId": "spearow",
+      "weight": 7
+    },
+    {
+      "speciesId": "nidoran-f",
+      "weight": 16
+    },
+    {
+      "speciesId": "nidoran-m",
+      "weight": 16
+    },
+    {
+      "speciesId": "metapod",
+      "weight": 8
+    },
+    {
+      "speciesId": "kakuna",
+      "weight": 8
+    },
+    {
+      "speciesId": "oddish",
+      "weight": 12
+    },
+    {
+      "speciesId": "psyduck",
+      "weight": 44
+    },
+    {
+      "speciesId": "abra",
+      "weight": 10
+    },
+    {
+      "speciesId": "bellsprout",
+      "weight": 12
+    },
+    {
+      "speciesId": "krabby",
+      "weight": 44
+    },
+    {
+      "speciesId": "fearow",
+      "weight": 13
+    },
+    {
+      "speciesId": "ekans",
+      "weight": 4
+    },
+    {
+      "speciesId": "arbok",
+      "weight": 0
+    },
+    {
+      "speciesId": "sandshrew",
+      "weight": 4
+    },
+    {
+      "speciesId": "sandslash",
+      "weight": 0
+    },
+    {
+      "speciesId": "slowbro",
+      "weight": 13
+    },
+    {
+      "speciesId": "kingler",
+      "weight": 13
+    },
+    {
+      "speciesId": "seadra",
+      "weight": 13
+    },
+    {
+      "speciesId": "seaking",
+      "weight": 13
+    },
+    {
+      "speciesId": "ditto",
+      "weight": 25
+    }
+  ],
+  "viridian_forest": [
+    {
+      "speciesId": "caterpie",
+      "weight": 21
+    },
+    {
+      "speciesId": "metapod",
+      "weight": 16
+    },
+    {
+      "speciesId": "weedle",
+      "weight": 21
+    },
+    {
+      "speciesId": "kakuna",
+      "weight": 16
+    },
+    {
+      "speciesId": "pikachu",
+      "weight": 1
+    }
+  ],
+  "route_3_grass": [
+    {
+      "speciesId": "pidgey",
+      "weight": 41
+    },
+    {
+      "speciesId": "spearow",
+      "weight": 41
+    },
+    {
+      "speciesId": "jigglypuff",
+      "weight": 2
+    },
+    {
+      "speciesId": "magikarp",
+      "weight": 200
+    }
+  ],
+  "route_4_grass": [
+    {
+      "speciesId": "rattata",
+      "weight": 32
+    },
+    {
+      "speciesId": "spearow",
+      "weight": 25
+    },
+    {
+      "speciesId": "ekans",
+      "weight": 6
+    },
+    {
+      "speciesId": "sandshrew",
+      "weight": 6
+    },
+    {
+      "speciesId": "magikarp",
+      "weight": 200
+    }
+  ],
+  "route_22_grass": [
+    {
+      "speciesId": "rattata",
+      "weight": 41
+    },
+    {
+      "speciesId": "spearow",
+      "weight": 2
+    },
+    {
+      "speciesId": "nidoran-f",
+      "weight": 16
+    },
+    {
+      "speciesId": "nidoran-m",
+      "weight": 16
+    },
+    {
+      "speciesId": "poliwag",
+      "weight": 200
+    },
+    {
+      "speciesId": "goldeen",
+      "weight": 200
+    },
+    {
+      "speciesId": "magikarp",
+      "weight": 200
+    }
+  ],
+  "tall_grass_common": [
+    {
+      "speciesId": "pidgey",
+      "weight": 174
+    },
+    {
+      "speciesId": "rattata",
+      "weight": 141
+    },
+    {
+      "speciesId": "spearow",
+      "weight": 153
+    },
+    {
+      "speciesId": "ekans",
+      "weight": 26
+    },
+    {
+      "speciesId": "sandshrew",
+      "weight": 26
+    },
+    {
+      "speciesId": "poliwag",
+      "weight": 650
+    },
+    {
+      "speciesId": "poliwhirl",
+      "weight": 50
+    },
+    {
+      "speciesId": "slowpoke",
+      "weight": 50
+    },
+    {
+      "speciesId": "voltorb",
+      "weight": 32
+    },
+    {
+      "speciesId": "goldeen",
+      "weight": 1084
+    },
+    {
+      "speciesId": "magikarp",
+      "weight": 2452
+    },
+    {
+      "speciesId": "shellder",
+      "weight": 50
+    },
+    {
+      "speciesId": "drowzee",
+      "weight": 13
+    },
+    {
+      "speciesId": "krabby",
+      "weight": 146
+    },
+    {
+      "speciesId": "oddish",
+      "weight": 60
+    },
+    {
+      "speciesId": "gloom",
+      "weight": 0
+    },
+    {
+      "speciesId": "venonat",
+      "weight": 32
+    },
+    {
+      "speciesId": "bellsprout",
+      "weight": 60
+    },
+    {
+      "speciesId": "weepinbell",
+      "weight": 0
+    },
+    {
+      "speciesId": "tentacool",
+      "weight": 52
+    },
+    {
+      "speciesId": "snorlax",
+      "weight": 400
+    },
+    {
+      "speciesId": "ditto",
+      "weight": 39
+    },
+    {
+      "speciesId": "pidgeotto",
+      "weight": 2
+    },
+    {
+      "speciesId": "raticate",
+      "weight": 27
+    },
+    {
+      "speciesId": "doduo",
+      "weight": 39
+    },
+    {
+      "speciesId": "fearow",
+      "weight": 19
+    },
+    {
+      "speciesId": "caterpie",
+      "weight": 10
+    },
+    {
+      "speciesId": "weedle",
+      "weight": 10
+    },
+    {
+      "speciesId": "nidoran-f",
+      "weight": 16
+    },
+    {
+      "speciesId": "nidoran-m",
+      "weight": 16
+    },
+    {
+      "speciesId": "metapod",
+      "weight": 8
+    },
+    {
+      "speciesId": "kakuna",
+      "weight": 8
+    },
+    {
+      "speciesId": "psyduck",
+      "weight": 44
+    },
+    {
+      "speciesId": "abra",
+      "weight": 10
+    },
+    {
+      "speciesId": "arbok",
+      "weight": 0
+    },
+    {
+      "speciesId": "sandslash",
+      "weight": 0
+    },
+    {
+      "speciesId": "slowbro",
+      "weight": 13
+    },
+    {
+      "speciesId": "kingler",
+      "weight": 13
+    },
+    {
+      "speciesId": "seadra",
+      "weight": 13
+    },
+    {
+      "speciesId": "seaking",
+      "weight": 13
+    }
+  ],
+  "cave": [
+    {
+      "speciesId": "diglett",
+      "weight": 181
+    },
+    {
+      "speciesId": "dugtrio",
+      "weight": 1
+    },
+    {
+      "speciesId": "clefairy",
+      "weight": 1
+    },
+    {
+      "speciesId": "zubat",
+      "weight": 371
+    },
+    {
+      "speciesId": "paras",
+      "weight": 8
+    },
+    {
+      "speciesId": "geodude",
+      "weight": 88
+    },
+    {
+      "speciesId": "machop",
+      "weight": 34
+    },
+    {
+      "speciesId": "onix",
+      "weight": 47
+    },
+    {
+      "speciesId": "golbat",
+      "weight": 3
+    },
+    {
+      "speciesId": "machoke",
+      "weight": 2
+    },
+    {
+      "speciesId": "graveler",
+      "weight": 2
+    },
+    {
+      "speciesId": "marowak",
+      "weight": 0
+    },
+    {
+      "speciesId": "moltres",
+      "weight": 200
+    },
+    {
+      "speciesId": "venomoth",
+      "weight": 2
+    }
+  ],
+  "water": [
+    {
+      "speciesId": "zubat",
+      "weight": 2
+    },
+    {
+      "speciesId": "golbat",
+      "weight": 9
+    },
+    {
+      "speciesId": "psyduck",
+      "weight": 29
+    },
+    {
+      "speciesId": "golduck",
+      "weight": 0
+    },
+    {
+      "speciesId": "slowpoke",
+      "weight": 29
+    },
+    {
+      "speciesId": "slowbro",
+      "weight": 26
+    },
+    {
+      "speciesId": "seel",
+      "weight": 61
+    },
+    {
+      "speciesId": "shellder",
+      "weight": 70
+    },
+    {
+      "speciesId": "krabby",
+      "weight": 29
+    },
+    {
+      "speciesId": "horsea",
+      "weight": 79
+    },
+    {
+      "speciesId": "staryu",
+      "weight": 70
+    },
+    {
+      "speciesId": "dewgong",
+      "weight": 0
+    },
+    {
+      "speciesId": "kingler",
+      "weight": 26
+    },
+    {
+      "speciesId": "seadra",
+      "weight": 26
+    },
+    {
+      "speciesId": "poliwag",
+      "weight": 200
+    },
+    {
+      "speciesId": "goldeen",
+      "weight": 326
+    },
+    {
+      "speciesId": "magikarp",
+      "weight": 800
+    },
+    {
+      "speciesId": "articuno",
+      "weight": 200
+    },
+    {
+      "speciesId": "arbok",
+      "weight": 1
+    },
+    {
+      "speciesId": "raichu",
+      "weight": 2
+    },
+    {
+      "speciesId": "sandslash",
+      "weight": 1
+    },
+    {
+      "speciesId": "parasect",
+      "weight": 3
+    },
+    {
+      "speciesId": "venomoth",
+      "weight": 10
+    },
+    {
+      "speciesId": "kadabra",
+      "weight": 6
+    },
+    {
+      "speciesId": "magneton",
+      "weight": 5
+    },
+    {
+      "speciesId": "dodrio",
+      "weight": 10
+    },
+    {
+      "speciesId": "hypno",
+      "weight": 8
+    },
+    {
+      "speciesId": "seaking",
+      "weight": 26
+    },
+    {
+      "speciesId": "ditto",
+      "weight": 3
+    },
+    {
+      "speciesId": "wigglytuff",
+      "weight": 1
+    },
+    {
+      "speciesId": "electrode",
+      "weight": 7
+    },
+    {
+      "speciesId": "marowak",
+      "weight": 10
+    },
+    {
+      "speciesId": "rhydon",
+      "weight": 10
+    },
+    {
+      "speciesId": "chansey",
+      "weight": 3
+    },
+    {
+      "speciesId": "mewtwo",
+      "weight": 200
+    }
+  ],
+  "default_grass": [
+    {
+      "speciesId": "pidgey",
+      "weight": 215
+    },
+    {
+      "speciesId": "rattata",
+      "weight": 141
+    },
+    {
+      "speciesId": "spearow",
+      "weight": 194
+    },
+    {
+      "speciesId": "ekans",
+      "weight": 26
+    },
+    {
+      "speciesId": "sandshrew",
+      "weight": 26
+    },
+    {
+      "speciesId": "poliwag",
+      "weight": 650
+    },
+    {
+      "speciesId": "poliwhirl",
+      "weight": 50
+    },
+    {
+      "speciesId": "slowpoke",
+      "weight": 50
+    },
+    {
+      "speciesId": "voltorb",
+      "weight": 32
+    },
+    {
+      "speciesId": "goldeen",
+      "weight": 1084
+    },
+    {
+      "speciesId": "magikarp",
+      "weight": 2652
+    },
+    {
+      "speciesId": "shellder",
+      "weight": 50
+    },
+    {
+      "speciesId": "drowzee",
+      "weight": 13
+    },
+    {
+      "speciesId": "krabby",
+      "weight": 146
+    },
+    {
+      "speciesId": "oddish",
+      "weight": 60
+    },
+    {
+      "speciesId": "gloom",
+      "weight": 0
+    },
+    {
+      "speciesId": "venonat",
+      "weight": 32
+    },
+    {
+      "speciesId": "bellsprout",
+      "weight": 60
+    },
+    {
+      "speciesId": "weepinbell",
+      "weight": 0
+    },
+    {
+      "speciesId": "tentacool",
+      "weight": 52
+    },
+    {
+      "speciesId": "snorlax",
+      "weight": 400
+    },
+    {
+      "speciesId": "ditto",
+      "weight": 39
+    },
+    {
+      "speciesId": "pidgeotto",
+      "weight": 2
+    },
+    {
+      "speciesId": "raticate",
+      "weight": 27
+    },
+    {
+      "speciesId": "doduo",
+      "weight": 39
+    },
+    {
+      "speciesId": "fearow",
+      "weight": 19
+    },
+    {
+      "speciesId": "caterpie",
+      "weight": 10
+    },
+    {
+      "speciesId": "weedle",
+      "weight": 10
+    },
+    {
+      "speciesId": "nidoran-f",
+      "weight": 16
+    },
+    {
+      "speciesId": "nidoran-m",
+      "weight": 16
+    },
+    {
+      "speciesId": "metapod",
+      "weight": 8
+    },
+    {
+      "speciesId": "kakuna",
+      "weight": 8
+    },
+    {
+      "speciesId": "psyduck",
+      "weight": 44
+    },
+    {
+      "speciesId": "abra",
+      "weight": 10
+    },
+    {
+      "speciesId": "jigglypuff",
+      "weight": 2
+    },
+    {
+      "speciesId": "arbok",
+      "weight": 0
+    },
+    {
+      "speciesId": "sandslash",
+      "weight": 0
+    },
+    {
+      "speciesId": "slowbro",
+      "weight": 13
+    },
+    {
+      "speciesId": "kingler",
+      "weight": 13
+    },
+    {
+      "speciesId": "seadra",
+      "weight": 13
+    },
+    {
+      "speciesId": "seaking",
+      "weight": 13
+    }
+  ]
+}

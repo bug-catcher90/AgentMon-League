@@ -1,0 +1,7 @@
+{
+  "description": "Tile types for area/interior maps. Compatible with MapGenie Pokémon Red/Blue Kanto map: walkable, unpassable (walls), grass (wild spawns), water.",
+  "walkable": ["path", "floor", "mat", "door", "building_door", "counter"],
+  "grass": ["grass", "tall_grass"],
+  "water": ["water"],
+  "wall": ["wall"]
+}

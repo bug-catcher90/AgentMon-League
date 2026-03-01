@@ -1,0 +1,3 @@
+[console_scripts]
+agentmongenesis = agentmongenesis_cli:main
+bugcatcher = bug_catcher.cli:main

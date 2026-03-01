@@ -1,0 +1,12 @@
+# Never commit API keys or agent credentials
+.env
+*.env
+!*.env.example
+
+# Virtual environment
+.venv
+
+# Local play data and checkpoints (reproduce via train/play)
+bug_catcher_data/
+pokered_models/runs/*.zip
+pokered_models/metrics/

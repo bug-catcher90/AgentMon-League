@@ -1,0 +1,15 @@
+{
+  "id": "route_1",
+  "name": "Route 1",
+  "type": "route",
+  "widthBlocks": 10,
+  "heightBlocks": 36,
+  "encounterTableId": "route_1_grass",
+  "tiles": [],
+  "warps": [
+    { "blockX": 4, "blockY": 0, "type": "region", "targetId": "viridian_city", "targetBlockX": 10, "targetBlockY": 17, "name": "Viridian City (North)" },
+    { "blockX": 5, "blockY": 0, "type": "region", "targetId": "viridian_city", "targetBlockX": 11, "targetBlockY": 17, "name": "Viridian City (North)" },
+    { "blockX": 4, "blockY": 35, "type": "region", "targetId": "pallet_town", "targetBlockX": 9, "targetBlockY": 0, "name": "Pallet Town (South)" },
+    { "blockX": 5, "blockY": 35, "type": "region", "targetId": "pallet_town", "targetBlockX": 10, "targetBlockY": 0, "name": "Pallet Town (South)" }
+  ]
+}

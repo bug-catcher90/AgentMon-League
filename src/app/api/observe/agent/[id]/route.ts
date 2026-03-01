@@ -1,0 +1,171 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { getGen1IndexToSpeciesIdMap, getGen1RomOffsetToSpeciesIdMap } from "@/lib/content";
+
+const EMULATOR_URL = process.env.EMULATOR_URL ?? "http://127.0.0.1:8765";
+
+export const dynamic = "force-dynamic";
+
+/**
+ * GET /api/observe/agent/:id
+ * Read-only. Public agent profile and recent transcript.
+ * Enriches with session playtime and region (mapName) when agent has an active emulator session.
+ */
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const agent = await prisma.agent.findUnique({
+    where: { id },
+    include: { profile: true, state: true },
+  });
+  if (!agent) {
+    return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+  }
+
+  const logs = await prisma.eventLog.findMany({
+    where: { agentId: id },
+    orderBy: { createdAt: "asc" },
+    take: 100,
+  });
+
+  let sessionPlaytimeSeconds: number | null = null;
+  let sessionRegion: string | null = null;
+  let emulatorState: {
+    party?: unknown[];
+    mapName?: string;
+    pokedexOwned?: number;
+    pokedexSeen?: number;
+    inventory?: { count?: number; items?: { id: string; quantity: number }[] };
+  } | null = null;
+  let recentActions: { step: number; mapName: string; action: string; ts: number }[] = [];
+  try {
+    const sessRes = await fetch(`${EMULATOR_URL}/sessions`, { cache: "no-store" });
+    const sessData = await sessRes.json().catch(() => ({ agent_ids: [] }));
+    const agentIds: string[] = sessData.agent_ids ?? [];
+    if (agentIds.includes(id)) {
+      const [stateRes, actionsRes] = await Promise.all([
+        fetch(`${EMULATOR_URL}/session/${encodeURIComponent(id)}/state`, { cache: "no-store" }),
+        fetch(`${EMULATOR_URL}/session/${encodeURIComponent(id)}/recent_actions`, { cache: "no-store" }),
+      ]);
+      if (stateRes.ok) {
+        const s = await stateRes.json().catch(() => ({}));
+        sessionPlaytimeSeconds = s.sessionTimeSeconds ?? 0;
+        sessionRegion = s.mapName ?? null;
+        emulatorState = s;
+      }
+      if (actionsRes.ok) {
+        const a = await actionsRes.json().catch(() => ({ recent_actions: [] }));
+        recentActions = Array.isArray(a.recent_actions) ? a.recent_actions : [];
+      }
+    }
+  } catch {
+    // Emulator unreachable
+  }
+
+  const logEntries = logs.map((l) => ({ line: l.line, createdAt: l.createdAt.toISOString() }));
+  const actionEntries = recentActions.map((a) => ({
+    line: `Steps: ${a.step} | ${a.mapName || "?"} | last: ${a.action}`,
+    createdAt: new Date((a.ts || 0) * 1000).toISOString(),
+  }));
+  const allEntries = [...logEntries, ...actionEntries].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
+  const recentTranscript = allEntries.slice(-30);
+
+  const baseState = agent.state
+    ? {
+        x: agent.state.x,
+        y: agent.state.y,
+        level: agent.state.level,
+        gold: agent.state.gold,
+        party: agent.state.party,
+        badges: agent.state.badges,
+        inventory: agent.state.inventory,
+        regionId: agent.state.regionId ?? null,
+      }
+    : null;
+
+  // When agent has an active session, always expose state (from emulator + DB). Use emulator for party, inventory, region, pokedex.
+  const rawParty =
+    Array.isArray(emulatorState?.party) && emulatorState.party.length > 0 ? emulatorState.party : baseState?.party ?? [];
+  const gen1Map = getGen1IndexToSpeciesIdMap();
+  const romOffsetMap = getGen1RomOffsetToSpeciesIdMap();
+  const emulatorParty = rawParty.map((entry: { speciesId?: string | number; level?: number }) => {
+    let speciesId: string | undefined =
+      typeof entry?.speciesId === "string" ? entry.speciesId : undefined;
+    const rawNum =
+      typeof entry?.speciesId === "number"
+        ? entry.speciesId
+        : speciesId?.match(/^species-(\d+)$/)?.[1];
+    if (rawNum !== undefined) {
+      const n = typeof rawNum === "string" ? parseInt(rawNum, 10) : rawNum;
+      speciesId = romOffsetMap[n] ?? gen1Map[n] ?? speciesId;
+    }
+    return { ...entry, speciesId: speciesId ?? (entry?.speciesId != null ? String(entry.speciesId) : undefined) };
+  });
+  const emulatorInventoryRaw = emulatorState?.inventory;
+  const emulatorInventorySlots: { itemId: string; count: number }[] = Array.isArray(emulatorInventoryRaw?.items)
+    ? emulatorInventoryRaw.items.map((item: { id: string; quantity: number }) => ({
+        itemId: item.id ?? "unknown",
+        count: typeof item.quantity === "number" ? item.quantity : 1,
+      }))
+    : [];
+  const emulatorInventory =
+    emulatorInventorySlots.length > 0 ? emulatorInventorySlots : (baseState?.inventory as { itemId: string; count: number }[] | undefined) ?? [];
+  const sessionPokedexOwned = typeof emulatorState?.pokedexOwned === "number" ? emulatorState.pokedexOwned : undefined;
+  const sessionPokedexSeen = typeof emulatorState?.pokedexSeen === "number" ? emulatorState.pokedexSeen : undefined;
+
+  const hasSessionState = emulatorState != null;
+  const state = hasSessionState
+    ? {
+        ...(baseState ?? {
+          x: 0,
+          y: 0,
+          level: 1,
+          gold: 0,
+          party: [],
+          badges: [],
+          inventory: [],
+          regionId: null,
+        }),
+        party: emulatorParty,
+        inventory: emulatorInventory,
+        regionId: sessionRegion ?? baseState?.regionId ?? null,
+        ...(sessionPokedexOwned !== undefined && { pokedexOwned: sessionPokedexOwned }),
+        ...(sessionPokedexSeen !== undefined && { pokedexSeen: sessionPokedexSeen }),
+      }
+    : baseState
+      ? {
+          ...baseState,
+          party: emulatorParty.length > 0 ? emulatorParty : baseState.party,
+          regionId: sessionRegion ?? baseState.regionId,
+        }
+      : null;
+
+  return NextResponse.json({
+    id: agent.id,
+    displayName: agent.displayName,
+    handle: agent.handle,
+    avatarUrl: agent.avatarUrl,
+    profile: agent.profile
+      ? {
+          name: agent.profile.name,
+          level: agent.profile.level,
+          badges: agent.profile.badges,
+          pokedexSeenCount: agent.profile.pokedexSeenCount,
+          pokedexOwnedCount: agent.profile.pokedexOwnedCount,
+          wins: agent.profile.wins,
+          losses: agent.profile.losses,
+          gymWins: agent.profile.gymWins,
+          leagueWins: agent.profile.leagueWins,
+          totalPlaytimeSeconds: agent.profile.totalPlaytimeSeconds ?? 0,
+        }
+      : null,
+    state,
+    sessionPlaytimeSeconds,
+    sessionRegion,
+    recentTranscript,
+  });
+}

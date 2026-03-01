@@ -1,0 +1,39 @@
+{
+  "width": 64,
+  "height": 64,
+  "regions": {
+    "pallet_town": {"terrain": "city", "encounterTableId": null, "x1": 0, "y1": 0, "x2": 7, "y2": 7},
+    "route_1": {"terrain": "grass", "encounterTableId": "route_1_grass", "x1": 4, "y1": 8, "x2": 11, "y2": 20},
+    "viridian_city": {"terrain": "city", "encounterTableId": null, "x1": 8, "y1": 22, "x2": 18, "y2": 30},
+    "viridian_forest": {"terrain": "tall_grass", "encounterTableId": "viridian_forest", "x1": 12, "y1": 10, "x2": 22, "y2": 18},
+    "pewter_city": {"terrain": "city", "encounterTableId": null, "x1": 20, "y1": 8, "x2": 28, "y2": 14},
+    "pewter_gym": {"terrain": "gym", "encounterTableId": null, "x1": 23, "y1": 9, "x2": 25, "y2": 11},
+    "route_3": {"terrain": "grass", "encounterTableId": "route_3_grass", "x1": 26, "y1": 12, "x2": 35, "y2": 18},
+    "mt_moon": {"terrain": "cave", "encounterTableId": "cave", "x1": 32, "y1": 14, "x2": 38, "y2": 20},
+    "cerulean_city": {"terrain": "city", "encounterTableId": null, "x1": 36, "y1": 8, "x2": 44, "y2": 14},
+    "cerulean_gym": {"terrain": "gym", "encounterTableId": null, "x1": 38, "y1": 9, "x2": 40, "y2": 11},
+    "vermilion_city": {"terrain": "city", "encounterTableId": null, "x1": 8, "y1": 32, "x2": 16, "y2": 40},
+    "vermilion_gym": {"terrain": "gym", "encounterTableId": null, "x1": 10, "y1": 33, "x2": 12, "y2": 35},
+    "lavender_city": {"terrain": "city", "encounterTableId": null, "x1": 28, "y1": 28, "x2": 36, "y2": 34},
+    "lavender_gym": {"terrain": "gym", "encounterTableId": null, "x1": 30, "y1": 29, "x2": 32, "y2": 31},
+    "celadon_city": {"terrain": "city", "encounterTableId": null, "x1": 40, "y1": 22, "x2": 50, "y2": 32},
+    "celadon_gym": {"terrain": "gym", "encounterTableId": null, "x1": 42, "y1": 24, "x2": 44, "y2": 26},
+    "fuchsia_city": {"terrain": "city", "encounterTableId": null, "x1": 42, "y1": 40, "x2": 52, "y2": 50},
+    "fuchsia_gym": {"terrain": "gym", "encounterTableId": null, "x1": 44, "y1": 42, "x2": 46, "y2": 44},
+    "saffron_city": {"terrain": "city", "encounterTableId": null, "x1": 34, "y1": 18, "x2": 42, "y2": 26},
+    "saffron_gym": {"terrain": "gym", "encounterTableId": null, "x1": 36, "y1": 20, "x2": 38, "y2": 22},
+    "cinnabar_gym": {"terrain": "gym", "encounterTableId": null, "x1": 52, "y1": 28, "x2": 54, "y2": 30},
+    "default": {"terrain": "grass", "encounterTableId": "default_grass", "x1": 0, "y1": 0, "x2": 63, "y2": 63}
+  },
+  "spawn": {"x": 4, "y": 4},
+  "gyms": [
+    {"badgeId": "boulder", "cityName": "Pewter City", "name": "Pewter Gym", "x": 24, "y": 10},
+    {"badgeId": "cascade", "cityName": "Cerulean City", "name": "Cerulean Gym", "x": 39, "y": 10},
+    {"badgeId": "thunder", "cityName": "Vermilion City", "name": "Vermilion Gym", "x": 11, "y": 34},
+    {"badgeId": "rainbow", "cityName": "Celadon City", "name": "Celadon Gym", "x": 43, "y": 25},
+    {"badgeId": "soul", "cityName": "Fuchsia City", "name": "Fuchsia Gym", "x": 45, "y": 43},
+    {"badgeId": "marsh", "cityName": "Saffron City", "name": "Saffron Gym", "x": 37, "y": 21},
+    {"badgeId": "volcano", "cityName": "Cinnabar Island", "name": "Cinnabar Gym", "x": 53, "y": 29},
+    {"badgeId": "earth", "cityName": "Viridian City", "name": "Viridian Gym", "x": 13, "y": 26}
+  ]
+}

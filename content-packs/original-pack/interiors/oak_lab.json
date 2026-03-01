@@ -1,0 +1,19 @@
+{
+  "id": "oak_lab",
+  "name": "Oak Lab",
+  "type": "building",
+  "widthBlocks": 8,
+  "heightBlocks": 6,
+  "tiles": [
+    "floor","floor","floor","floor","floor","floor","floor","floor",
+    "floor","floor","floor","floor","floor","floor","floor","floor",
+    "floor","floor","floor","floor","floor","floor","floor","floor",
+    "floor","floor","floor","floor","floor","floor","floor","floor",
+    "floor","floor","floor","floor","floor","floor","floor","floor",
+    "floor","floor","door","door","floor","floor","floor","floor"
+  ],
+  "warps": [
+    { "blockX": 2, "blockY": 5, "type": "region", "targetId": "pallet_town", "targetBlockX": 12, "targetBlockY": 14, "name": "Exit to Pallet Town" },
+    { "blockX": 3, "blockY": 5, "type": "region", "targetId": "pallet_town", "targetBlockX": 13, "targetBlockY": 14, "name": "Exit to Pallet Town" }
+  ]
+}

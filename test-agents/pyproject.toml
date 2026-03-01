@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentmon-test-agents"
+version = "0.1.0"
+description = "AgentMon League test agents: RL (Genesis) and LLM (Bug-Catcher) CLIs"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "requests",
+    "python-dotenv",
+    "openai",
+    "numpy>=2.0.0",
+    "gymnasium",
+    "stable-baselines3",
+]
+
+[project.scripts]
+agentmongenesis = "agentmongenesis_cli:main"
+bugcatcher = "bug_catcher.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["rl_agent*", "bug_catcher*"]
+
+[tool.setuptools.package-dir]
+"" = "."
+
+[tool.setuptools]
+py-modules = ["agentmongenesis_cli"]

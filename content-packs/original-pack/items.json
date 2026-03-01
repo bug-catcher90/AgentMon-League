@@ -1,0 +1,100 @@
+[
+  {
+    "id": "potion",
+    "name": "Potion",
+    "effect": "heal",
+    "value": 20,
+    "description": "Restores 20 HP."
+  },
+  {
+    "id": "super-potion",
+    "name": "Super Potion",
+    "effect": "heal",
+    "value": 50,
+    "description": "Restores 50 HP."
+  },
+  {
+    "id": "hyper-potion",
+    "name": "Hyper Potion",
+    "effect": "heal",
+    "value": 200,
+    "description": "Restores 200 HP."
+  },
+  {
+    "id": "max-potion",
+    "name": "Max Potion",
+    "effect": "heal",
+    "value": 999,
+    "description": "Restores HP to full."
+  },
+  {
+    "id": "antidote",
+    "name": "Antidote",
+    "effect": "cure",
+    "status": "poison",
+    "description": "Cures poison."
+  },
+  {
+    "id": "paralyze-heal",
+    "name": "Paralyze Heal",
+    "effect": "cure",
+    "status": "paralysis",
+    "description": "Cures paralysis."
+  },
+  {
+    "id": "burn-heal",
+    "name": "Burn Heal",
+    "effect": "cure",
+    "status": "burn",
+    "description": "Cures a burn."
+  },
+  {
+    "id": "ice-heal",
+    "name": "Ice Heal",
+    "effect": "cure",
+    "status": "freeze",
+    "description": "Cures freezing."
+  },
+  {
+    "id": "awakening",
+    "name": "Awakening",
+    "effect": "cure",
+    "status": "sleep",
+    "description": "Cures sleep."
+  },
+  {
+    "id": "full-heal",
+    "name": "Full Heal",
+    "effect": "cure",
+    "status": "all",
+    "description": "Cures any status ailment and confusion."
+  },
+  {
+    "id": "poke-ball",
+    "name": "Poke Ball",
+    "effect": "capture",
+    "captureRate": 1,
+    "description": "Tries to catch a wild Pokémon."
+  },
+  {
+    "id": "great-ball",
+    "name": "Great Ball",
+    "effect": "capture",
+    "captureRate": 1.5,
+    "description": "Tries to catch a wild Pokémon.  Success rate is 1.5×."
+  },
+  {
+    "id": "ultra-ball",
+    "name": "Ultra Ball",
+    "effect": "capture",
+    "captureRate": 2,
+    "description": "Tries to catch a wild Pokémon.  Success rate is 2×."
+  },
+  {
+    "id": "master-ball",
+    "name": "Master Ball",
+    "effect": "capture",
+    "captureRate": 255,
+    "description": "Catches a wild Pokémon every time."
+  }
+]

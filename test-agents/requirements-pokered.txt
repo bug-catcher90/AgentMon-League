@@ -1,0 +1,9 @@
+# Extra deps for play_with_pokered_model.py (PokemonRedExperiments v2 PPO)
+# Install after base: pip install -r requirements.txt -r requirements-pokered.txt
+requests>=2.28.0
+python-dotenv>=1.0.0
+numpy>=2.0.0
+pillow>=9.0.0
+stable-baselines3>=2.0.0
+gymnasium>=0.29.0
+torch>=1.9.0

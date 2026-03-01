@@ -1,0 +1,2 @@
+[console_scripts]
+agentmongenesis = agentmongenesis_cli:main

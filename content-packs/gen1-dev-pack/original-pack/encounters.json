@@ -1,0 +1,59 @@
+{
+  "route_1_grass": [
+    {"speciesId": "pidgey", "weight": 50},
+    {"speciesId": "rattata", "weight": 40},
+    {"speciesId": "oddish", "weight": 10}
+  ],
+  "route_2_grass": [
+    {"speciesId": "pidgey", "weight": 35},
+    {"speciesId": "rattata", "weight": 35},
+    {"speciesId": "oddish", "weight": 15},
+    {"speciesId": "bellsprout", "weight": 15}
+  ],
+  "route_3_grass": [
+    {"speciesId": "pidgey", "weight": 30},
+    {"speciesId": "mankey", "weight": 35},
+    {"speciesId": "jigglypuff", "weight": 20},
+    {"speciesId": "rattata", "weight": 15}
+  ],
+  "viridian_forest": [
+    {"speciesId": "oddish", "weight": 40},
+    {"speciesId": "bellsprout", "weight": 40},
+    {"speciesId": "pidgey", "weight": 15},
+    {"speciesId": "pikachu", "weight": 5}
+  ],
+  "route_4_grass": [
+    {"speciesId": "rattata", "weight": 30},
+    {"speciesId": "pidgey", "weight": 30},
+    {"speciesId": "mankey", "weight": 20},
+    {"speciesId": "geodude", "weight": 20}
+  ],
+  "route_22_grass": [
+    {"speciesId": "rattata", "weight": 40},
+    {"speciesId": "pidgey", "weight": 35},
+    {"speciesId": "nidoran-m", "weight": 15},
+    {"speciesId": "oddish", "weight": 10}
+  ],
+  "tall_grass_common": [
+    {"speciesId": "pidgey", "weight": 30},
+    {"speciesId": "rattata", "weight": 30},
+    {"speciesId": "oddish", "weight": 20},
+    {"speciesId": "bellsprout", "weight": 20}
+  ],
+  "cave": [
+    {"speciesId": "zubat", "weight": 50},
+    {"speciesId": "geodude", "weight": 35},
+    {"speciesId": "clefairy", "weight": 15}
+  ],
+  "water": [
+    {"speciesId": "tentacool", "weight": 60},
+    {"speciesId": "magikarp", "weight": 30},
+    {"speciesId": "goldeen", "weight": 10}
+  ],
+  "default_grass": [
+    {"speciesId": "pidgey", "weight": 40},
+    {"speciesId": "rattata", "weight": 40},
+    {"speciesId": "oddish", "weight": 10},
+    {"speciesId": "bellsprout", "weight": 10}
+  ]
+}

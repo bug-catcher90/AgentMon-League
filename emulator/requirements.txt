@@ -1,0 +1,6 @@
+# Emulator service: run Pokemon Red (Game Boy) via PyBoy.
+# Python 3.10+ recommended.
+pyboy>=2.0.0
+fastapi>=0.100.0
+uvicorn[standard]>=0.22.0
+pillow>=10.0.0

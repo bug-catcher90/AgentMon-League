@@ -1,0 +1,36 @@
+{
+  "id": "pallet_town",
+  "name": "Pallet Town",
+  "type": "city",
+  "widthBlocks": 20,
+  "heightBlocks": 18,
+  "encounterTableId": null,
+  "tiles": [
+    "grass","grass","grass","grass","grass","grass","grass","grass","grass","path","path","grass","grass","grass","grass","grass","grass","grass","grass","grass",
+    "grass","grass","grass","grass","grass","grass","grass","grass","grass","path","path","grass","grass","grass","grass","grass","grass","grass","grass","grass",
+    "grass","grass","grass","grass","grass","grass","grass","grass","grass","path","path","grass","grass","grass","grass","grass","grass","grass","grass","grass",
+    "grass","path","path","path","path","path","path","path","path","path","path","path","path","path","path","path","path","path","path","grass",
+    "grass","path","path","path","path","path","path","path","path","path","path","path","path","path","path","path","path","path","path","grass",
+    "grass","path","path","grass","grass","grass","grass","building_door","grass","path","path","grass","grass","building_door","grass","grass","grass","grass","path","grass",
+    "grass","path","path","grass","grass","grass","grass","grass","grass","path","path","grass","grass","grass","grass","grass","grass","grass","path","grass",
+    "grass","path","path","path","path","path","path","path","path","path","path","path","path","path","path","path","path","path","path","grass",
+    "grass","path","path","path","path","path","path","path","path","path","path","path","path","path","path","path","path","path","path","grass",
+    "grass","path","path","grass","grass","grass","path","path","path","path","path","path","path","path","grass","grass","grass","grass","path","grass",
+    "grass","path","path","grass","grass","grass","path","path","path","path","path","path","path","path","grass","grass","grass","grass","path","grass",
+    "grass","path","path","path","path","path","path","path","path","path","path","path","path","path","path","path","path","path","path","grass",
+    "grass","grass","grass","grass","path","path","path","path","path","path","path","path","path","path","path","path","grass","grass","grass","grass",
+    "grass","grass","grass","grass","path","path","path","path","path","path","path","path","path","path","path","path","grass","grass","grass","grass",
+    "grass","grass","grass","grass","path","path","path","path","path","path","path","path","path","path","path","path","grass","grass","grass","grass",
+    "grass","grass","grass","grass","path","path","path","path","path","path","path","path","path","path","path","path","grass","grass","grass","grass",
+    "grass","grass","grass","grass","path","path","path","path","building_door","building_door","path","path","path","path","path","path","grass","grass","grass","grass",
+    "grass","grass","grass","grass","grass","grass","grass","path","path","path","path","path","path","grass","grass","grass","grass","grass","grass","grass"
+  ],
+  "warps": [
+    { "blockX": 9, "blockY": 0, "type": "region", "targetId": "route_1", "targetBlockX": 9, "targetBlockY": 17, "name": "Route 1 (North)" },
+    { "blockX": 10, "blockY": 0, "type": "region", "targetId": "route_1", "targetBlockX": 10, "targetBlockY": 17, "name": "Route 1 (North)" },
+    { "blockX": 8, "blockY": 16, "type": "interior", "targetId": "player_house", "targetBlockX": 3, "targetBlockY": 6, "name": "Player House" },
+    { "blockX": 9, "blockY": 16, "type": "interior", "targetId": "player_house", "targetBlockX": 3, "targetBlockY": 6, "name": "Player House" },
+    { "blockX": 7, "blockY": 5, "type": "interior", "targetId": "rival_house", "targetBlockX": 3, "targetBlockY": 5, "name": "Rival House" },
+    { "blockX": 13, "blockY": 5, "type": "interior", "targetId": "oak_lab", "targetBlockX": 3, "targetBlockY": 5, "name": "Oak Lab" }
+  ]
+}

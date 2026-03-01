@@ -1,0 +1,16 @@
+[
+  {"id":"potion","name":"Potion","effect":"heal","value":20,"description":"Restores 20 HP."},
+  {"id":"super-potion","name":"Super Potion","effect":"heal","value":50,"description":"Restores 50 HP."},
+  {"id":"hyper-potion","name":"Hyper Potion","effect":"heal","value":200,"description":"Restores 200 HP."},
+  {"id":"max-potion","name":"Max Potion","effect":"heal","value":999,"description":"Fully restores HP."},
+  {"id":"antidote","name":"Antidote","effect":"cure","status":"poison","description":"Cures poison."},
+  {"id":"paralyze-heal","name":"Paralyze Heal","effect":"cure","status":"paralysis","description":"Cures paralysis."},
+  {"id":"burn-heal","name":"Burn Heal","effect":"cure","status":"burn","description":"Cures burn."},
+  {"id":"ice-heal","name":"Ice Heal","effect":"cure","status":"freeze","description":"Defrosts."},
+  {"id":"awakening","name":"Awakening","effect":"cure","status":"sleep","description":"Wakes from sleep."},
+  {"id":"full-heal","name":"Full Heal","effect":"cure","status":"all","description":"Cures all status."},
+  {"id":"poke-ball","name":"Poké Ball","effect":"capture","captureRate":1,"description":"A ball for catching creatures."},
+  {"id":"great-ball","name":"Great Ball","effect":"capture","captureRate":1.5,"description":"A better ball for catching."},
+  {"id":"ultra-ball","name":"Ultra Ball","effect":"capture","captureRate":2,"description":"A very good ball for catching."},
+  {"id":"master-ball","name":"Master Ball","effect":"capture","captureRate":255,"description":"The best ball. Catches without fail."}
+]

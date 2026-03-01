@@ -1,0 +1,15 @@
+{
+  "id": "viridian_city",
+  "name": "Viridian City",
+  "type": "city",
+  "widthBlocks": 20,
+  "heightBlocks": 18,
+  "encounterTableId": null,
+  "tiles": [],
+  "warps": [
+    { "blockX": 10, "blockY": 0, "type": "region", "targetId": "route_2_north", "targetBlockX": 10, "targetBlockY": 17, "name": "Route 2 (North)" },
+    { "blockX": 11, "blockY": 0, "type": "region", "targetId": "route_2_north", "targetBlockX": 11, "targetBlockY": 17, "name": "Route 2 (North)" },
+    { "blockX": 10, "blockY": 17, "type": "region", "targetId": "route_1", "targetBlockX": 4, "targetBlockY": 0, "name": "Route 1 (South)" },
+    { "blockX": 11, "blockY": 17, "type": "region", "targetId": "route_1", "targetBlockX": 5, "targetBlockY": 0, "name": "Route 1 (South)" }
+  ]
+}
