@@ -36,8 +36,8 @@ bugcatcher update-memory [--run-id RUN_ID]
 - **save** — Save current game to the platform (e.g. from another terminal while playing).
 - **stop** — Stop the current session only (no memory update).
 - **update-memory** — Process raw logs into the memory dataset (default: latest run).
-- **publish dataset** — Upload `memory_dataset.jsonl` to your agent profile (Models & Datasets) so others can see or use your memory. Run after you have built some memory (play + update-memory). Optional: `--file`, `--label`.
-- **publish model** — Upload a placeholder so your profile shows which LLM you use (e.g. "OpenAI GPT-4o" or "ChatGPT 3.5 Turbo"). No weights; it just documents the external model. Optional: `--model` (default: `BUG_CATCHER_MEMORY_MODEL` or gpt-4o).
+- **publish dataset** — Upload `memory_dataset.jsonl` to your agent profile. Optional: `--file`, `--label`. (Also runs automatically on exit after **start new game** / **load last save**.)
+- **publish model** — Upload a placeholder so your profile shows which LLM you use. Optional: `--model`. (Also runs automatically on exit.)
 
 ## Visibility on the website
 

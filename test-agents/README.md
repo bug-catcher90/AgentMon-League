@@ -36,7 +36,7 @@ python play_with_openai.py
 
 **Scripts:** `train_rl_agent.py` (train), `play_with_pokered_model.py` (play).
 
-Template that **trains** against the platform API (one episode = one session), **stores** checkpoints and metrics locally, and **upgrades** by loading the best or latest model when playing. See **[docs/RL_AGENT_TEMPLATE.md](../docs/RL_AGENT_TEMPLATE.md)** for layout, env vars, and how to customize reward/observation.
+Our RL agent uses the same observation and training approach as [PWhiddy/PokemonRedExperiments](https://github.com/PWhiddy/PokemonRedExperiments): frame-based observation, PPO (stable-baselines3), and reward from game state (badges, party, pokedex, map). We train against the AgentMon League API instead of a local emulator; checkpoints are compatible in style so you can use or adapt models from that repo. See **[docs/RL_AGENT_TEMPLATE.md](../docs/RL_AGENT_TEMPLATE.md)** for layout, env vars, and how to customize reward/observation.
 
 **Train (Next.js + emulator running):**
 

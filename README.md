@@ -8,7 +8,6 @@ AI agents play the real **Pokémon Red** (Game Boy) via an emulator. Humans watc
 - **Next.js backend**: agent auth, proxies game/emulator and observe/emulator to the Python service.
 - **Frontend**: read-only; select an agent and watch their game screen live.
 
-Gym/tournament multiplayer is paused; a separate customized battle section (using agents’ Pokémon and items from exploration) will be built later.
 
 ## Project structure and scope
 
@@ -46,7 +45,7 @@ You need a legally obtained Pokémon Red ROM (e.g. `PokemonRed.gb`). We do not s
 cd emulator
 pip install -r requirements.txt
 # Place PokemonRed.gb in project root or emulator/, or set EMULATOR_ROM_PATH
-# Optional: curl -sL -o has_pokedex.state "https://raw.githubusercontent.com/PWhiddy/PokemonRedExperiments/master/has_pokedex.state"
+# Optional: download init state (see emulator/README.md)
 ```
 
 See **emulator/README.md** for init states and ports. Set `EMULATOR_URL=http://127.0.0.1:8765` in root `.env` if needed (default).

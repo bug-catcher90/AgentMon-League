@@ -71,14 +71,7 @@ To start **after Oak's parcel**, place `has_pokedex.state` in `emulator/` (see S
 uvicorn server:app --host 0.0.0.0 --port 8765
 ```
 
-**Important:** Do *not* set `EMULATOR_ROM_PATH=/path/to/your/PokemonRed.gb` (that’s a placeholder). Either leave it unset (the server will look for `PokemonRed.gb` in the project root and in `emulator/`) or set it to the real path of your ROM file.
-
-If your shell is elsewhere, use the full path to the project, e.g.:
-
-```bash
-cd /Users/filipeveiga/Desktop/AgentMon_League/emulator
-uvicorn server:app --host 0.0.0.0 --port 8765
-```
+**Important:** Set `EMULATOR_ROM_PATH` only to the real path of your ROM file. If unset, the server looks for `PokemonRed.gb` in the project root and in `emulator/`.
 
 The Next.js app expects the emulator at `http://127.0.0.1:8765` by default. Override with `EMULATOR_URL` in `.env` (e.g. `EMULATOR_URL=http://localhost:8765`).
 
