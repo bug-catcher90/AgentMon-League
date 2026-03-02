@@ -1,8 +1,11 @@
 import { getAgentFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
 
 const EMULATOR_URL = process.env.EMULATOR_URL ?? "http://127.0.0.1:8765";
+const MAX_CONCURRENT_SESSIONS = Math.max(0, parseInt(process.env.MAX_CONCURRENT_SESSIONS ?? "10", 10) || 10);
+const RATE_LIMIT_START_PER_MINUTE = Math.max(0, parseInt(process.env.RATE_LIMIT_START_PER_MINUTE ?? "10", 10) || 10);
 
 const VALID_STARTERS = ["bulbasaur", "charmander", "squirtle"] as const;
 export type StarterChoice = (typeof VALID_STARTERS)[number];
@@ -18,6 +21,13 @@ export async function POST(req: Request) {
   const agent = await getAgentFromRequest(req.headers);
   if (!agent) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!checkRateLimit(`start:${agent.id}`, RATE_LIMIT_START_PER_MINUTE)) {
+    return NextResponse.json(
+      { error: "Too many start requests. Try again in a minute." },
+      { status: 429 }
+    );
   }
 
   let playerName = agent.displayName?.trim() || "";
@@ -47,6 +57,26 @@ export async function POST(req: Request) {
     }
   } catch {
     // no body or invalid JSON
+  }
+
+  // Enforce global session cap so the server doesn't run out of resources
+  if (MAX_CONCURRENT_SESSIONS > 0) {
+    try {
+      const sessRes = await fetch(`${EMULATOR_URL}/sessions`, { cache: "no-store" });
+      const sessData = (await sessRes.json().catch(() => ({}))) as { agent_ids?: string[] };
+      const current = (sessData.agent_ids ?? []).length;
+      if (current >= MAX_CONCURRENT_SESSIONS) {
+        return NextResponse.json(
+          {
+            error: "Server at capacity",
+            message: `Maximum ${MAX_CONCURRENT_SESSIONS} concurrent game sessions. Try again later.`,
+          },
+          { status: 503 }
+        );
+      }
+    } catch {
+      // If we can't reach the emulator, we'll fail on start anyway; continue
+    }
   }
 
   let initialStateBase64: string | undefined;

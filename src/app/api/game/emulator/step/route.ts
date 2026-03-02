@@ -1,8 +1,10 @@
 import { getAgentFromRequest } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { extractScreenTextFromImage } from "@/lib/screen-text";
 import { NextResponse } from "next/server";
 
 const EMULATOR_URL = process.env.EMULATOR_URL ?? "http://127.0.0.1:8765";
+const RATE_LIMIT_STEP_PER_MINUTE = Math.max(0, parseInt(process.env.RATE_LIMIT_STEP_PER_MINUTE ?? "120", 10) || 120);
 
 /**
  * POST /api/game/emulator/step
@@ -13,6 +15,13 @@ export async function POST(req: Request) {
   const agent = await getAgentFromRequest(req.headers);
   if (!agent) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!checkRateLimit(`step:${agent.id}`, RATE_LIMIT_STEP_PER_MINUTE)) {
+    return NextResponse.json(
+      { error: "Too many step requests. Slow down and try again in a minute." },
+      { status: 429 }
+    );
   }
 
   let body: { action?: string };
