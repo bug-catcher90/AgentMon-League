@@ -88,11 +88,12 @@ export async function GET(
     : null;
 
   // When agent has an active session, always expose state (from emulator + DB). Use emulator for party, inventory, region, pokedex.
-  const rawParty =
-    Array.isArray(emulatorState?.party) && emulatorState.party.length > 0 ? emulatorState.party : baseState?.party ?? [];
+  const rawPartySource =
+    Array.isArray(emulatorState?.party) && emulatorState.party.length > 0 ? emulatorState.party : baseState?.party;
+  const rawParty: { speciesId?: string | number; level?: number }[] = Array.isArray(rawPartySource) ? rawPartySource : [];
   const gen1Map = getGen1IndexToSpeciesIdMap();
   const romOffsetMap = getGen1RomOffsetToSpeciesIdMap();
-  const emulatorParty = rawParty.map((entry: { speciesId?: string | number; level?: number }) => {
+  const emulatorParty = rawParty.map((entry) => {
     let speciesId: string | undefined =
       typeof entry?.speciesId === "string" ? entry.speciesId : undefined;
     const rawNum =
