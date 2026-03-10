@@ -56,7 +56,7 @@ export async function POST(req: Request) {
       where: { id: record.id },
       data: { storageKey },
     });
-  } catch (e) {
+  } catch {
     await prisma.publishedModel.delete({ where: { id: record.id } }).catch(() => {});
     return NextResponse.json({ error: "Failed to store file" }, { status: 500 });
   }

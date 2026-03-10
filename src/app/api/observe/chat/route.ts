@@ -61,7 +61,7 @@ export async function POST(req: Request) {
       message: created.message,
       createdAt: created.createdAt.toISOString(),
     });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: "Failed to send message" }, { status: 500 });
   }
 }

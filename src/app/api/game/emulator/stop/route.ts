@@ -100,7 +100,7 @@ export async function POST(req: Request) {
     }).catch(() => {});
 
     return NextResponse.json({ ok: true });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ ok: true, message: "Service unreachable" });
   }
 }

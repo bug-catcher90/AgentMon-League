@@ -1,0 +1,7 @@
+# Railway: use root Dockerfile for this service (Next.js app).
+# Second service (emulator) must be added in the dashboard with Dockerfile path: emulator/Dockerfile
+# See docs/RAILWAY.md for full setup (Neon, variables, domain).
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"

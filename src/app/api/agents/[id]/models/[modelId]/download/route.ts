@@ -28,7 +28,7 @@ export async function GET(
 
   try {
     const buffer = await readModelBlob(model.storageKey);
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/zip",
         "Content-Disposition": `attachment; filename="${model.label.replace(/[^a-zA-Z0-9_-]/g, "_")}.zip"`,

@@ -50,7 +50,7 @@ export async function GET() {
       };
     });
     return NextResponse.json({ sessions });
-  } catch (e) {
+  } catch {
     return NextResponse.json(
       { sessions: [], error: "Emulator service unreachable" },
       { status: 200 }

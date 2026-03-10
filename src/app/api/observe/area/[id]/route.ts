@@ -12,7 +12,6 @@ function fillAreaTiles(area: { id: string; widthBlocks: number; heightBlocks: nu
   const tiles: string[] = [];
   for (let i = 0; i < len; i++) {
     const x = i % area.widthBlocks;
-    const y = Math.floor(i / area.widthBlocks);
     if (area.id === "route_1") {
       tiles.push(x >= 4 && x <= 5 ? "path" : "grass");
     } else {

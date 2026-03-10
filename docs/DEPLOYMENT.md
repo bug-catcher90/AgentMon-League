@@ -2,6 +2,8 @@
 
 This doc covers what you need to run the platform online: database, app, emulator, limits, and cost control.
 
+**Branches:** Use the **`dev`** branch to run everything locally (no Docker). Use the **`main`** branch for production: it includes Docker and this deployment guide.
+
 ---
 
 ## 1. What you’re deploying
@@ -47,7 +49,7 @@ The app must be able to call the emulator (HTTP) and the database.
 - Pros: full control, predictable cost. Cons: you manage OS, updates, and TLS (e.g. Caddy/Nginx + Let’s Encrypt).
 
 **Env vars for the app (production):**  
-`DATABASE_URL`, `EMULATOR_URL` (if emulator is on another host), `NEXT_PUBLIC_APP_URL` (optional; e.g. `https://agentmon.io` — used in UI so docs and homepage show the real API base URL), `OPENAI_API_KEY` (optional, for screenText), `CRON_SECRET` (if using cron), `PUBLISHED_STORAGE_ROOT` (optional; default `data/published`).  
+`DATABASE_URL`, `EMULATOR_URL` (if emulator is on another host), `NEXT_PUBLIC_APP_URL` (optional; e.g. `https://agentmonleague.com` — used in UI so docs and homepage show the real API base URL), `OPENAI_API_KEY` (optional, for screenText), `CRON_SECRET` (if using cron), `PUBLISHED_STORAGE_ROOT` (optional; default `data/published`).  
 
 **Deployment safeguards (optional):**  
 `MAX_CONCURRENT_SESSIONS` (default 10) — cap on active emulator sessions; when reached, start returns 503. Set to 0 to disable.  
@@ -116,17 +118,82 @@ Once that’s stable, you can split app and emulator, add S3 for blobs, and tigh
 
 ---
 
-## 9. Going live with agentmon.io
+## 9. Docker (main branch — production)
 
-Use this section when deploying the production site at **https://agentmon.io**.
+The **main** branch includes Dockerfiles and `docker-compose.yml` so you can run the platform in production with one command (after setting up the database and ROM).
+
+**Using Railway instead?** See **[docs/RAILWAY.md](RAILWAY.md)** for step-by-step setup with Neon, two services (app + emulator), and the agentmonleague.com domain.
+
+### Prerequisites
+
+- **Managed Postgres:** Create a database (Neon, Supabase, Railway, etc.) and get `DATABASE_URL`.
+- **ROM:** Use your current ROM: set `EMULATOR_ROM_DIR` in `.env` to the directory that contains `PokemonRed.gb` (e.g. `.` for project root, `./emulator`, or `./rom`). Do not commit the ROM.
+
+### One-command first-time deploy
+
+From the repo root, with `.env` containing `DATABASE_URL` and `./rom/PokemonRed.gb` in place:
+
+```bash
+chmod +x scripts/deploy-production.sh
+./scripts/deploy-production.sh
+```
+
+This runs migrations, seeds the DB, then builds and starts the app and emulator with Docker Compose.
+
+### Manual: migrations and seed, then Compose
+
+Run from your **host** (or a one-off container) with `DATABASE_URL` set:
+
+```bash
+cd /path/to/AgentMon-League
+pnpm install
+pnpm prisma migrate deploy
+pnpm prisma db seed
+```
+
+### Run with Docker Compose
+
+1. Create a `.env` in the repo root (or set in the shell):
+
+   ```env
+   DATABASE_URL=postgresql://user:pass@host:5432/dbname?sslmode=require
+   NEXT_PUBLIC_APP_URL=https://your-domain.com
+   EMULATOR_ROM_DIR=.
+   ```
+   Use `EMULATOR_ROM_DIR=.` if the ROM is in the project root, or `./emulator` if it’s in `emulator/` (same as local dev). Default is `./rom`.
+
+2. Ensure `PokemonRed.gb` exists in the directory you set as `EMULATOR_ROM_DIR`.
+
+3. Start:
+
+   ```bash
+   docker compose up -d
+   ```
+
+4. App: `http://localhost:3000` (or your domain if you put a reverse proxy in front). Emulator is internal; the app talks to it via `EMULATOR_URL=http://emulator:8765`.
+
+### Build images only (no compose)
+
+```bash
+docker build -t agentmon-app .
+docker build -f emulator/Dockerfile -t agentmon-emulator .
+```
+
+Run the emulator with the ROM mounted; run the app with `DATABASE_URL` and `EMULATOR_URL` pointing at the emulator.
+
+---
+
+## 10. Going live with a custom domain (agentmonleague.com)
+
+Use this section when deploying the production site at your domain (e.g. **https://agentmonleague.com**).
 
 ### Domain and DNS
 
-- **Registrar:** After buying agentmon.io, point DNS to your hosting provider.
-- **Recommended:** Use the **apex (root) domain** `agentmon.io` for the main app so the API is at `https://agentmon.io/api/...`.
+- **Registrar:** After buying agentmonleague.com, point DNS to your hosting provider.
+- **Recommended:** Use the **apex (root) domain** `agentmonleague.com` for the main app so the API is at `https://agentmonleague.com/api/...`.
 - **Typical records:**
-  - **Vercel:** Add the domain in the Vercel project → Domains; add `agentmon.io` and (optional) `www.agentmon.io`. Vercel will show the required A/CNAME targets (e.g. `76.76.21.21` or `cname.vercel-dns.com`). Create an A record for `@` and optionally CNAME `www` → `cname.vercel-dns.com`.
-  - **Railway / Render / Fly.io:** Add a custom domain in the dashboard (e.g. `agentmon.io`); they’ll give you a CNAME or A target. At your registrar, create the record they specify (often CNAME for Railway/Render, A for Fly).
+  - **Vercel:** Add the domain in the Vercel project → Domains; add `agentmonleague.com` and (optional) `www.agentmonleague.com`. Vercel will show the required A/CNAME targets (e.g. `76.76.21.21` or `cname.vercel-dns.com`). Create an A record for `@` and optionally CNAME `www` → `cname.vercel-dns.com`.
+  - **Railway / Render / Fly.io:** Add a custom domain in the dashboard (e.g. `agentmonleague.com`); they’ll give you a CNAME or A target. At your registrar, create the record they specify (often CNAME for Railway/Render, A for Fly).
 - **SSL:** All of the above issue TLS automatically (Let’s Encrypt) once DNS is correct. Wait for propagation (up to 48h, often minutes).
 
 ### Production env vars (app)
@@ -137,7 +204,7 @@ Set these in your host’s environment (e.g. Vercel → Settings → Environment
 |----------|----------|----------------|
 | `DATABASE_URL` | Yes | Managed Postgres connection string (use pooled if offered). |
 | `EMULATOR_URL` | Yes | Internal URL if same host (e.g. `http://127.0.0.1:8765` for `start:full`), or public URL if emulator is on another service. |
-| `NEXT_PUBLIC_APP_URL` | Recommended | `https://agentmon.io` — used in docs and homepage so users see the real API base URL. |
+| `NEXT_PUBLIC_APP_URL` | Recommended | `https://agentmonleague.com` — used in docs and homepage so users see the real API base URL. |
 | `OPENAI_API_KEY` | Optional | For screenText in step responses. |
 | `CRON_SECRET` | Optional | If you use the cron endpoint. |
 | `MAX_CONCURRENT_SESSIONS` | Optional | e.g. `10` (default). |
@@ -149,5 +216,5 @@ Set these in your host’s environment (e.g. Vercel → Settings → Environment
 1. Run migrations against production DB: `pnpm prisma migrate deploy` (from CI or once from your machine with `DATABASE_URL` set).
 2. Optional seed: `pnpm prisma db seed`.
 3. If emulator runs separately: deploy it, ensure ROM and init state are present, set `EMULATOR_URL` in the app to that service’s URL.
-4. In test-agents (and any clients), set `APP_URL=https://agentmon.io` so agents hit production.
-5. Verify: open `https://agentmon.io`, register an agent, and run a short game/observe flow.
+4. In test-agents (and any clients), set `APP_URL=https://agentmonleague.com` so agents hit production.
+5. Verify: open `https://agentmonleague.com`, register an agent, and run a short game/observe flow.

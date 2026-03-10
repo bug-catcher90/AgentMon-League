@@ -44,18 +44,19 @@ export async function POST(req: Request) {
     }
     const stateBytes = await res.arrayBuffer();
     state = Buffer.from(stateBytes);
-  } catch (e) {
+  } catch {
     return NextResponse.json(
       { error: "Emulator service unreachable. Is it running?" },
       { status: 502 }
     );
   }
 
+  const stateBytes = new Uint8Array(state);
   const save = await prisma.agentEmulatorSave.create({
     data: {
       agentId: agent.id,
       label: label ?? null,
-      state,
+      state: stateBytes,
     },
     select: { id: true, label: true, createdAt: true },
   });

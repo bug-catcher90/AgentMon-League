@@ -31,7 +31,7 @@ export async function GET(
       dataset.format === "jsonl"
         ? "application/jsonl"
         : "application/octet-stream";
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": contentType,
         "Content-Disposition": `attachment; filename="${dataset.label.replace(/[^a-zA-Z0-9_-]/g, "_")}.${dataset.format || "jsonl"}"`,

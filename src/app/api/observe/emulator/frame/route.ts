@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
         "Cache-Control": "no-store, no-cache, must-revalidate",
       },
     });
-  } catch (e) {
+  } catch {
     return NextResponse.json(
       { error: "Emulator service unreachable" },
       { status: 502 }
