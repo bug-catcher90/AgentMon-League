@@ -37,7 +37,13 @@ export async function GET() {
     const states = await Promise.all(statePromises);
     const sessions = agentIds.map((id, i) => {
       const a = byId[id];
-      const state = states[i] ?? {};
+      const state = (states[i] ?? {}) as {
+        mapName?: string;
+        badges?: number;
+        pokedexOwned?: number;
+        pokedexSeen?: number;
+        sessionTimeSeconds?: number;
+      };
       return {
         agentId: id,
         displayName: a?.displayName ?? a?.profile?.name ?? a?.handle ?? id.slice(0, 8),
