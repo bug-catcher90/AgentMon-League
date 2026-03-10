@@ -33,7 +33,7 @@ export async function GET() {
             r.ok ? r.json().catch(() => ({})) : {}
           )
         );
-        const states = await Promise.all(statePromises);
+        const states = (await Promise.all(statePromises)) as { sessionTimeSeconds?: number }[];
         currentSessionPlaytime = states.reduce((sum, s) => sum + (s.sessionTimeSeconds ?? 0), 0);
       } catch {
         // emulator unreachable for session state
