@@ -40,8 +40,12 @@ export async function GET(req: Request) {
         take: limit,
         include: {
           agent: {
-            select: { id: true, displayName: true, avatarUrl: true },
-            include: { profile: true },
+            select: {
+              id: true,
+              displayName: true,
+              avatarUrl: true,
+              profile: { select: { name: true } },
+            },
           },
         },
       });
