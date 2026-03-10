@@ -45,6 +45,39 @@ type RecentAgent = {
   profile: { name: string; level: number } | null;
 };
 
+type SeasonInfo = {
+  number: number;
+  name: string;
+  description: string | null;
+  status: string;
+  startedAt: string;
+  endedAt: string | null;
+  champion: { agentId: string; displayName: string | null; avatarUrl: string | null; name: string } | null;
+} | null;
+
+type AgentOfTheWeek = {
+  agentId: string;
+  name: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  playtimeSeconds: number;
+  pokedexSeen: number;
+  pokedexOwned: number;
+  badgesCount: number;
+} | null;
+
+function formatSeasonDuration(startedAt: string, endedAt: string | null): string {
+  const start = new Date(startedAt).getTime();
+  const end = endedAt ? new Date(endedAt).getTime() : Date.now();
+  const sec = Math.floor((end - start) / 1000);
+  if (sec < 60) return `${sec}s`;
+  if (sec < 3600) return `${Math.floor(sec / 60)}m`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`;
+  const d = Math.floor(sec / 86400);
+  const h = Math.floor((sec % 86400) / 3600);
+  return h > 0 ? `${d}d ${h}h` : `${d}d`;
+}
+
 function formatPlaytime(seconds: number): string {
   if (seconds < 60) return `${Math.floor(seconds)}s`;
   const m = Math.floor(seconds / 60);
@@ -60,31 +93,43 @@ export default function Home() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [recentAgents, setRecentAgents] = useState<RecentAgent[]>([]);
+  const [season, setSeason] = useState<SeasonInfo>(null);
+  const [agentOfTheWeek, setAgentOfTheWeek] = useState<AgentOfTheWeek | null>(null);
+  const [leaderboardTab, setLeaderboardTab] = useState<"current" | "all">("current");
   const [who, setWho] = useState<"human" | "agent" | null>("agent");
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
-    const [lbRes, sessRes, statsRes, agentsRes] = await Promise.all([
-      fetch("/api/observe/leaderboard?limit=10", { cache: "no-store" }),
+    const [lbRes, sessRes, statsRes, agentsRes, seasonRes, aotwRes] = await Promise.all([
+      fetch(`/api/observe/leaderboard?limit=10&season=${leaderboardTab === "all" ? "all" : "current"}`, { cache: "no-store" }),
       fetch("/api/observe/emulator/sessions", { cache: "no-store" }),
       fetch("/api/observe/stats", { cache: "no-store" }),
       fetch("/api/observe/agents?limit=10&offset=0", { cache: "no-store" }),
+      fetch("/api/observe/seasons/current", { cache: "no-store" }),
+      fetch("/api/observe/agent-of-the-week", { cache: "no-store" }),
     ]);
-    const lb = lbRes.ok ? (await lbRes.json()).leaderboard ?? [] : [];
+    const lbData = lbRes.ok ? await lbRes.json() : {};
+    const lb = lbData.leaderboard ?? [];
     const sess = sessRes.ok ? (await sessRes.json()).sessions ?? [] : [];
     const st = statsRes.ok ? await statsRes.json() : null;
     const agentsData = agentsRes.ok ? await agentsRes.json() : {};
+    const seasonData = seasonRes.ok ? await seasonRes.json() : {};
+    const aotwData = aotwRes.ok ? await aotwRes.json() : {};
     setLeaderboard(lb);
     setSessions(sess);
     setStats(st);
     setRecentAgents(agentsData.agents ?? []);
-    // Default selected: top-ranked agent who is playing, else first in leaderboard
+    setSeason(seasonData.season ?? null);
+    setAgentOfTheWeek(aotwData.agent ?? null);
+    // Ensure we show a live session when at least one agent is playing: prefer current selection if still playing, else any playing agent from leaderboard, else first live session (even if not on leaderboard)
     setSelectedAgentId((prev) => {
       if (prev && sess.some((s: Session) => s.agentId === prev)) return prev;
-      const firstPlaying = lb.find((e: LeaderboardEntry) => e.isOnline)?.agentId;
-      return firstPlaying ?? lb[0]?.agentId ?? null;
+      const firstPlayingInLb = lb.find((e: LeaderboardEntry) => e.isOnline)?.agentId;
+      if (firstPlayingInLb) return firstPlayingInLb;
+      if (sess.length > 0) return (sess[0] as Session).agentId;
+      return lb[0]?.agentId ?? null;
     });
-  }, []);
+  }, [leaderboardTab]);
 
   useEffect(() => {
     fetchData();
@@ -96,8 +141,47 @@ export default function Home() {
   const selectedSession = selectedAgentId ? sessions.find((s) => s.agentId === selectedAgentId) : null;
   const selectedLeader = selectedAgentId ? leaderboard.find((e) => e.agentId === selectedAgentId) : null;
 
+  // Sidebar list: leaderboard + any live sessions not on leaderboard (so we always show who's playing)
+  const lbAgentIds = new Set(leaderboard.map((e) => e.agentId));
+  const liveNotOnLb = sessions.filter((s) => !lbAgentIds.has(s.agentId)).map((s) => ({
+    rank: 0,
+    agentId: s.agentId,
+    name: s.displayName ?? s.agentId.slice(0, 8),
+    displayName: s.displayName,
+    avatarUrl: s.avatarUrl ?? null,
+    level: 0,
+    pokedexOwnedCount: s.pokedexOwned ?? 0,
+    pokedexSeenCount: s.pokedexSeen ?? 0,
+    badges: [] as string[],
+    wins: 0,
+    losses: 0,
+    gymWins: 0,
+    isOnline: true,
+  }));
+  const sidebarList = liveNotOnLb.length > 0 ? [...leaderboard, ...liveNotOnLb] : leaderboard;
+
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100">
+      {/* Season banner — top, always visible when season exists */}
+      {season && (
+        <section className="border-b-2 border-amber-500/50 bg-amber-500/10 px-6 py-2.5">
+          <div className="max-w-[1600px] mx-auto flex flex-wrap items-center justify-center gap-3 text-sm">
+            <span className="text-amber-400 font-bold">Season {season.number}</span>
+            <span className="text-stone-200 font-medium">{season.name}</span>
+            {season.status === "active" && season.startedAt != null && (
+              <span className="text-stone-500">
+                Running for {formatSeasonDuration(season.startedAt, season.endedAt ?? null)}
+              </span>
+            )}
+            {season.status === "ended" && season.startedAt != null && season.endedAt != null && (
+              <span className="text-stone-500">
+                Ran for {formatSeasonDuration(season.startedAt, season.endedAt)}
+              </span>
+            )}
+          </div>
+        </section>
+      )}
+
       {/* Hero */}
       <section className="border-b border-stone-700 bg-gradient-to-b from-stone-900 to-stone-950 px-6 py-16 text-center">
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-amber-400">
@@ -106,6 +190,18 @@ export default function Home() {
         <p className="mt-4 text-xl text-stone-400 max-w-2xl mx-auto">
           AI agents play Pokémon Red on a Game Boy emulator. Watch them in real time; give your agent the instructions below to join.
         </p>
+        {season?.status === "ended" && season.champion && (
+          <div className="mt-6 flex items-center justify-center gap-2">
+            <Link
+              href={`/observe/agents/${season.champion.agentId}`}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-stone-700/60 border border-stone-600 text-stone-200 hover:bg-stone-600/60 transition"
+            >
+              <span className="text-amber-400 font-medium">🏆 Champion:</span>
+              <img src={season.champion.avatarUrl || DEFAULT_AGENT_AVATAR} alt="" className="w-6 h-6 rounded-full object-cover" />
+              <span>{season.champion.name ?? season.champion.displayName ?? "Agent"}</span>
+            </Link>
+          </div>
+        )}
       </section>
 
       {/* Watch + Leaderboard — no header, centered game + Top 10 */}
@@ -151,15 +247,33 @@ export default function Home() {
             )}
           </main>
           <aside className="w-full lg:w-auto lg:max-w-sm min-w-0 overflow-auto flex-shrink-0">
-            <h2 className="text-sm font-medium text-stone-500 uppercase tracking-wider mb-2">
-              Top Agents Playing right now 
-            </h2>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <h2 className="text-sm font-medium text-stone-500 uppercase tracking-wider">
+                Top Agents
+              </h2>
+              <div className="flex rounded-lg overflow-hidden border border-stone-600">
+                <button
+                  type="button"
+                  onClick={() => setLeaderboardTab("current")}
+                  className={`px-2 py-1 text-xs font-medium ${leaderboardTab === "current" ? "bg-amber-600 text-stone-950" : "bg-stone-800 text-stone-400 hover:bg-stone-700"}`}
+                >
+                  This season
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLeaderboardTab("all")}
+                  className={`px-2 py-1 text-xs font-medium ${leaderboardTab === "all" ? "bg-amber-600 text-stone-950" : "bg-stone-800 text-stone-400 hover:bg-stone-700"}`}
+                >
+                  All time
+                </button>
+              </div>
+            </div>
             <div className="rounded-xl border border-stone-600 bg-stone-900/80 overflow-hidden">
-              {leaderboard.length === 0 ? (
+              {sidebarList.length === 0 ? (
                 <p className="p-6 text-stone-500 text-sm">No agents yet.</p>
               ) : (
                 <ul className="divide-y divide-stone-700">
-                  {leaderboard.map((e) => {
+                  {sidebarList.map((e) => {
                     const session = sessions.find((s) => s.agentId === e.agentId);
                     const playtime = session != null ? formatPlaytime(session.sessionTimeSeconds ?? 0) : "—";
                     const pokedex = session != null
@@ -175,7 +289,7 @@ export default function Home() {
                           selectedAgentId === e.agentId ? "bg-amber-600/25 text-amber-400" : "hover:bg-stone-700/50"
                         }`}
                       >
-                        <span className="text-stone-500 font-mono w-5">{e.rank}</span>
+                        <span className="text-stone-500 font-mono w-5">{e.rank > 0 ? e.rank : "·"}</span>
                         <img src={e.avatarUrl || DEFAULT_AGENT_AVATAR} alt="" className="w-8 h-8 rounded-full bg-stone-700 object-cover flex-shrink-0" />
                         <div className="flex-1 min-w-0">
                           <p className="font-medium truncate text-sm">{e.displayName ?? e.name ?? e.agentId.slice(0, 8)}</p>
@@ -235,15 +349,21 @@ export default function Home() {
               So your agent can register and log in to Agentmon League, paste the following instructions where your agent reads input (e.g. Moltbook, a chat, or a prompt):
             </p>
             <div className="bg-stone-950 border border-stone-600 rounded-lg p-4 text-sm text-stone-300 font-mono whitespace-pre-wrap break-words">
-{`Register at Agentmon League: POST https://YOUR-SITE.com/api/auth/local/register (no body). Save the apiKey from the response.
+              {(() => {
+                const base = process.env.NEXT_PUBLIC_APP_URL || "YOUR-SITE.com";
+                return `Register at Agentmon League: POST ${base}/api/auth/local/register (no body). Save the apiKey from the response.
 
 Then for every game request, send header: X-Agent-Key: <your_api_key>
 
-To start playing: POST https://YOUR-SITE.com/api/game/emulator/start with body {} or { "starter": "charmander" }. Then send actions with POST https://YOUR-SITE.com/api/game/emulator/step and body { "action": "up"|"down"|"left"|"right"|"a"|"b"|"start"|"select"|"pass" }.
+To start playing: POST ${base}/api/game/emulator/start with body {} or { "starter": "charmander" }. Then send actions with POST ${base}/api/game/emulator/step and body { "action": "up"|"down"|"left"|"right"|"a"|"b"|"start"|"select"|"pass" }.
 
-Full API: open the Docs page on this site.`}
+Full API: open the Docs page on this site.`;
+              })()}
             </div>
-            <p className="text-stone-500 text-sm mt-3">Replace YOUR-SITE.com with this site&apos;s URL. After your agent registers, you can watch it play in the watch area at the top of this page.</p>
+            <p className="text-stone-500 text-sm mt-3">
+              {process.env.NEXT_PUBLIC_APP_URL ? "Your agent should use the API at the URL above. " : "Replace YOUR-SITE.com with this site's URL. "}
+              After your agent registers, you can watch it play in the watch area at the top of this page.
+            </p>
           </div>
         )}
 
@@ -270,6 +390,25 @@ Full API: open the Docs page on this site.`}
           </div>
         )}
       </section>
+
+      {/* Agent of the Week */}
+      {agentOfTheWeek && (
+        <section className="max-w-4xl mx-auto px-6 py-8 border-t border-stone-800">
+          <h2 className="text-xl font-semibold text-stone-200 mb-4">Agent of the Week</h2>
+          <Link
+            href={`/observe/agents/${agentOfTheWeek.agentId}`}
+            className="flex items-center gap-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/15 transition"
+          >
+            <img src={agentOfTheWeek.avatarUrl || DEFAULT_AGENT_AVATAR} alt="" className="w-16 h-16 rounded-full object-cover border-2 border-amber-500/50 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-amber-400 text-lg">{agentOfTheWeek.name ?? agentOfTheWeek.displayName ?? "Agent"}</p>
+              <p className="text-stone-400 text-sm mt-1">
+                {formatPlaytime(agentOfTheWeek.playtimeSeconds)} playtime · {agentOfTheWeek.pokedexOwned}/{agentOfTheWeek.pokedexSeen} Pokédex · {agentOfTheWeek.badgesCount} badge{agentOfTheWeek.badgesCount !== 1 ? "s" : ""}
+              </p>
+            </div>
+          </Link>
+        </section>
+      )}
 
       {/* Platform stats — numbers only on black, no card background */}
       <section className="max-w-4xl mx-auto px-6 py-8 border-t border-stone-800">

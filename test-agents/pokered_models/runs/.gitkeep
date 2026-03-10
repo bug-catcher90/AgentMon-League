@@ -1,3 +1,1 @@
-# Place PokemonRedExperiments v2 .zip checkpoints here, or run:
-#   python train_minimal_rl_model.py
-# to create a minimal test checkpoint (poke_test_500_steps.zip).
+# Place PPO checkpoints here. Run: agentmongenesis train

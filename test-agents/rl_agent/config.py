@@ -30,10 +30,6 @@ EPISODE_MAX_STEPS = int(os.environ.get("RL_EPISODE_MAX_STEPS", "2000"))
 PLAY_MAX_STEPS = int(os.environ.get("RL_PLAY_MAX_STEPS", "0"))
 # Auto-save game to platform every N steps during play (0 = disabled). Default 1000.
 PLAY_SAVE_EVERY_STEPS = int(os.environ.get("RL_PLAY_SAVE_EVERY_STEPS", "1000"))
-# Record (obs, action, reward) during play for later train_from_play (set RECORD_PLAY_TRAJECTORIES=1)
-RECORD_PLAY_TRAJECTORIES = os.environ.get("RECORD_PLAY_TRAJECTORIES", "0").strip().lower() in ("1", "true", "yes")
-TRAJECTORIES_DIR = os.environ.get("RL_TRAJECTORIES_DIR", str(_BASE / "pokered_models" / "trajectories"))
-
 REWARD_BADGE = float(os.environ.get("RL_REWARD_BADGE", "20.0"))
 REWARD_PARTY = float(os.environ.get("RL_REWARD_PARTY", "5.0"))
 REWARD_POKEDEX_OWNED = float(os.environ.get("RL_REWARD_POKEDEX_OWNED", "2.0"))

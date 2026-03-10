@@ -24,6 +24,26 @@ type WatchConfig = {
   regions: Region[];
 };
 
+type SeasonInfo = {
+  number: number;
+  name: string;
+  status: string;
+  startedAt: string;
+  endedAt: string | null;
+} | null;
+
+function formatSeasonDuration(startedAt: string, endedAt: string | null): string {
+  const start = new Date(startedAt).getTime();
+  const end = endedAt ? new Date(endedAt).getTime() : Date.now();
+  const sec = Math.floor((end - start) / 1000);
+  if (sec < 60) return `${sec}s`;
+  if (sec < 3600) return `${Math.floor(sec / 60)}m`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`;
+  const d = Math.floor(sec / 86400);
+  const h = Math.floor((sec % 86400) / 3600);
+  return h > 0 ? `${d}d ${h}h` : `${d}d`;
+}
+
 function formatPlaytime(seconds: number): string {
   if (seconds < 60) return `${Math.floor(seconds)}s`;
   const m = Math.floor(seconds / 60);
@@ -58,6 +78,7 @@ export default function WatchPage() {
 
   const [sessions, setSessions] = useState<Session[]>([]);
   const [config, setConfig] = useState<WatchConfig | null>(null);
+  const [season, setSeason] = useState<SeasonInfo>(null);
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
   const [hoverRegion, setHoverRegion] = useState<Region | null>(null);
   const [searchInput, setSearchInput] = useState("");
@@ -90,6 +111,23 @@ export default function WatchPage() {
       }
     };
     fetchConfig();
+  }, []);
+
+  useEffect(() => {
+    const loadSeason = async () => {
+      try {
+        const res = await fetch("/api/observe/seasons/current", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          setSeason(data.season ?? null);
+        }
+      } catch {
+        setSeason(null);
+      }
+    };
+    loadSeason();
+    const t = setInterval(loadSeason, 30000);
+    return () => clearInterval(t);
   }, []);
 
   useEffect(() => {
@@ -179,6 +217,25 @@ export default function WatchPage() {
         <h1 className="text-xl font-semibold text-amber-400">Watch — Kanto</h1>
         <span className="text-stone-500 text-sm">{sessions.length} agent{sessions.length !== 1 ? "s" : ""} playing</span>
       </header>
+
+      {season && (
+        <section className="border-b-2 border-amber-500/50 bg-amber-500/10 px-6 py-2.5">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-amber-400 font-bold">Season {season.number}</span>
+            <span className="text-stone-200">{season.name}</span>
+            {season.status === "active" && season.startedAt && (
+              <span className="text-stone-500 text-sm">
+                Running for {formatSeasonDuration(season.startedAt, season.endedAt)}
+              </span>
+            )}
+            {season.status === "ended" && season.startedAt && season.endedAt && (
+              <span className="text-stone-500 text-sm">
+                Ran for {formatSeasonDuration(season.startedAt, season.endedAt)}
+              </span>
+            )}
+          </div>
+        </section>
+      )}
 
       {loading && sessions.length === 0 ? (
         <div className="p-6 text-stone-500">Loading…</div>

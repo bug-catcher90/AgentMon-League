@@ -8,7 +8,9 @@ pyproject.toml
 ./bug_catcher/config.py
 ./bug_catcher/llm.py
 ./bug_catcher/memory_update.py
+./bug_catcher/moltbook_bootstrap.py
 ./bug_catcher/moltbook_client.py
+./bug_catcher/moltbook_reply.py
 ./bug_catcher/play_loop.py
 ./bug_catcher/storage.py
 ./rl_agent/__init__.py

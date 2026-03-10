@@ -1,6 +1,9 @@
 """Gymnasium env that wraps the AgentMon League API. One episode = one session."""
 
+import time
+
 import numpy as np
+import requests
 from gymnasium import Env, spaces
 
 from rl_agent.api_client import (
@@ -27,13 +30,26 @@ class EmulatorEnv(Env):
     """
     One episode = one game session. reset() starts a new session and returns first obs.
     step(a) sends action to API, returns (obs, reward, terminated, truncated, info).
+
+    Use starter for new game, load_session_id for load last save.
     """
 
-    def __init__(self, agent_id: str, agent_key: str, starter: str | None = None):
+    def __init__(
+        self,
+        agent_id: str,
+        agent_key: str,
+        *,
+        starter: str | None = None,
+        load_session_id: str | None = None,
+        episode_max_steps: int | None = None,
+    ):
         super().__init__()
         self.agent_id = agent_id
         self.agent_key = agent_key
         self.starter = starter
+        self.load_session_id = load_session_id
+        self._episode_max_steps = episode_max_steps if episode_max_steps is not None else EPISODE_MAX_STEPS
+        self._session_agent_id: str | None = None  # set in reset from start_session response
         self.observation_space = spaces.Dict({
             "screens": spaces.Box(low=0, high=255, shape=OUTPUT_SHAPE, dtype=np.uint8),
             "health": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32),
@@ -56,13 +72,30 @@ class EmulatorEnv(Env):
             stop_session(self.agent_key)
         except Exception:
             pass
-        start_session(self.agent_key, self.starter)
+        if self.load_session_id:
+            start_data = start_session(self.agent_key, load_session_id=self.load_session_id)
+        else:
+            start_data = start_session(self.agent_key, starter=self.starter)
+        # Use agentId from start response (correct after DB reset when .env has stale AGENT_ID)
+        self._session_agent_id = start_data.get("agentId") or self.agent_id
         self._step = 0
         self._recent_screens = np.zeros(OUTPUT_SHAPE, dtype=np.uint8)
         self._recent_actions = np.zeros(3, dtype=np.int8)
         state = get_state(self.agent_key) or {}
         self._state_before = state
-        frame_bytes = get_frame(self.agent_id)
+        # Retry get_frame: emulator may return 404 briefly after start_session
+        frame_bytes = None
+        for attempt in range(15):
+            try:
+                frame_bytes = get_frame(self._session_agent_id)
+                break
+            except requests.exceptions.HTTPError as e:
+                if e.response is not None and e.response.status_code == 404 and attempt < 14:
+                    time.sleep(0.5)
+                    continue
+                raise
+        if frame_bytes is None:
+            raise RuntimeError("Could not get frame after start. Is the emulator running?")
         obs = build_obs_from_frame_and_state(
             frame_bytes, state, self._recent_screens, self._recent_actions
         )
@@ -83,13 +116,14 @@ class EmulatorEnv(Env):
         reward = compute_reward(self._state_before, state_after, step_penalty=True)
         self._state_before = state_after
 
-        frame_bytes = get_frame(self.agent_id)
+        agent_id = self._session_agent_id or self.agent_id
+        frame_bytes = get_frame(agent_id)
         obs = build_obs_from_frame_and_state(
             frame_bytes, state_after, self._recent_screens, self._recent_actions
         )
         self._recent_screens = obs["screens"].copy()
 
         terminated = False
-        truncated = self._step >= EPISODE_MAX_STEPS
+        truncated = self._step >= self._episode_max_steps
         info = {"state": state_after, "step": self._step}
         return obs, float(reward), terminated, truncated, info

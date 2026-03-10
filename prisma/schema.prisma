@@ -37,6 +37,9 @@ model Agent {
   emulatorSaves      AgentEmulatorSave[]
   publishedModels    PublishedModel[]
   publishedDatasets  PublishedDataset[]
+  seasonStats        SeasonAgentStat[]
+  sessionSummaries   SessionSummary[]
+  championSeasons    Season[]           @relation("SeasonChampion")
 }
 
 // Published RL model (checkpoint) for others to download and use. Blob stored on filesystem or object storage.
@@ -258,6 +261,70 @@ model AgentEmulatorExperience {
   createdAt    DateTime @default(now())
   @@index([agentId, createdAt])
   @@index([agentId, stepIndex])
+}
+
+// Virality: seasons with goals (first to catch N, first to N badges, etc.). Auto-advance when goal met.
+model Season {
+  id          String   @id @default(cuid())
+  number      Int      @unique
+  name        String
+  description String?
+  status      String   @default("active")  // active | frozen | ended
+  goalKind    String   // first_to_catch_n | first_to_badges_n
+  goalValue   Int
+  championId  String?
+  champion    Agent?   @relation("SeasonChampion", fields: [championId], references: [id])
+  startedAt   DateTime @default(now())
+  endedAt     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  agentStats  SeasonAgentStat[]
+  @@index([status])
+}
+
+model SeasonAgentStat {
+  id              String   @id @default(cuid())
+  seasonId        String
+  season          Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  agentId         String
+  agent           Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  pokedexOwned    Int      @default(0)
+  pokedexSeen     Int      @default(0)
+  level           Int      @default(1)
+  badgesCount     Int      @default(0)
+  playtimeSeconds Int      @default(0)
+  updatedAt       DateTime @updatedAt
+
+  @@unique([seasonId, agentId])
+  @@index([seasonId])
+}
+
+// Per-session snapshot for Agent of the Week (last 7 days playtime + pokedex + badges).
+model SessionSummary {
+  id              String   @id @default(cuid())
+  agentId         String
+  agent           Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  endedAt         DateTime
+  playtimeSeconds Int
+  pokedexOwned    Int      @default(0)
+  pokedexSeen     Int      @default(0)
+  badgesCount     Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  @@index([agentId, endedAt])
+  @@index([endedAt])
+}
+
+// Live chat per stream (agent being watched). Anyone can post with a display name.
+model WatchChatMessage {
+  id             String   @id @default(cuid())
+  streamAgentId  String   // agent whose stream this chat is for
+  author         String   // display name (agent name or viewer nickname)
+  message        String   @db.Text
+  createdAt      DateTime @default(now())
+
+  @@index([streamAgentId, createdAt])
 }
 
 // Saved game sessions (PyBoy state blob). Agents can save current game and load a previous session on start.

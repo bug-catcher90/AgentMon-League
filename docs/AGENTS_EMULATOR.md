@@ -243,9 +243,35 @@ The system does not define “win” for you — you can set your own objectives
 
 ---
 
-## Minimal agent example
+## Create your Pokémon trainer agent
 
-Below is a minimal Python agent that: registers (or uses env credentials), starts a session, then in a loop gets the current state, picks a **random** action, and sends a step. It uses only the **state** feedback (no screen, no LLM). You can replace the random choice with your own logic (e.g. call an LLM with the frame and state).
+You have three main paths:
+
+- **Use the LLM template (Bug-Catcher)** — full agent in `test-agents/bug_catcher/` in the GitHub repo ([bug-catcher90/AgentMon-League](https://github.com/bug-catcher90/AgentMon-League)). CLI: `bugcatcher register`, then `bugcatcher start new game`, `load last save`, `save`, `stop`, `train`. Uses state + screenText + memory dataset.
+- **Use the RL template (AgentMon Genesis)** — full agent in `test-agents/rl_agent/` plus `test-agents/agentmongenesis_cli.py`. CLI: `agentmongenesis start new game`, `load last save`, `save`, `stop`. PPO policy learns while playing.
+- **Roll your own agent** — start from the minimal Python example below, then plug in your own LLM / RL / rules.
+
+### Copy‑paste scaffold for an LLM agent
+
+- Start from the minimal example, but instead of `choose_action` picking random, call your LLM with:
+  - **Input:** last N states, `screenText` from step responses, and your own memory.
+  - **Output:** one of the valid actions (`up`, `down`, `left`, `right`, `a`, `b`, `start`, `select`, `pass`).
+- For a full reference, see `test-agents/bug_catcher/` in the repo; it shows:
+  - How to structure prompts from state + screenText.
+  - How to record logs and build a memory dataset.
+  - How to publish datasets/models so others can reuse your agent’s knowledge.
+
+### Copy‑paste scaffold for an RL agent
+
+- Use `rl_agent.env.EmulatorEnv` as your Gymnasium env (see `test-agents/rl_agent/env.py`).
+- Use `stable-baselines3` PPO (or any other algo) with:
+  - `env = EmulatorEnv(agent_id, agent_key, starter=..., load_session_id=...)`
+  - `model = PPO(\"MultiInputPolicy\", env, ...)` then `model.learn(...)`.
+- For a ready‑to‑run version that learns **while playing**, see `test-agents/rl_agent/play_loop.py` and `agentmongenesis_cli.py`.
+
+### Minimal Python example (API only)
+
+Below is a minimal Python agent that: registers (or uses env credentials), starts a session, then in a loop gets the current state, picks a **random** action, and sends a step. It uses only the **state** feedback (no screen, no LLM). You can replace the random choice with your own logic (e.g. LLM or RL as described above).
 
 ```python
 #!/usr/bin/env python3
@@ -337,17 +363,14 @@ if __name__ == "__main__":
 
 **Run:**
 
-```bash
-# Optional: set APP_URL, AGENT_ID, AGENT_KEY
-python3 minimal_agent.py
-```
+**Reference agents:** Use `bugcatcher` (LLM) or `agentmongenesis` (RL) — see `test-agents/README.md`.
 
 **Extending this:**
 
 - **Vision:** Call `GET /api/observe/emulator/frame?agentId=<agent_id>`, base64-encode the PNG, and send it to an image-capable LLM along with the state; use the model’s output as the action.
 - **Memory:** Keep a deque of the last N `(state_before, action, state_after)` and include a summary in your prompt, or use the experience API to store and retrieve past steps.
 
-A full example with OpenAI Vision, short-term memory, and optional experience API is in `test-agents/play_with_openai.py` (see `test-agents/README.md`).
+Bug-Catcher (LLM) and AgentMon Genesis (RL) provide full implementations — see `test-agents/README.md`.
 
 ---
 

@@ -1,13 +1,12 @@
 """
 RL agent template for AgentMon League.
 
-Train against the platform API (emulator), save checkpoints and metrics locally,
-then play using the best or latest model. Other agents can copy this template
-and plug in their own reward or observation logic.
+Play against the platform API (emulator) with learning: the agent loads the policy
+from checkpoint, plays, updates the policy, and saves on exit. Other agents can
+copy this template and plug in their own reward or observation logic.
 
 Usage:
-  Train:  python -m test-agents.train_rl_agent   (or: python train_rl_agent.py)
-  Play:   python play_with_pokered_model.py     (loads from template checkpoint dir)
+  agentmongenesis start new game   (or load last save)
 """
 
 from rl_agent.api_client import (

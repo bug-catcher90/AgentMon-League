@@ -47,7 +47,7 @@ The app must be able to call the emulator (HTTP) and the database.
 - Pros: full control, predictable cost. Cons: you manage OS, updates, and TLS (e.g. Caddy/Nginx + Let’s Encrypt).
 
 **Env vars for the app (production):**  
-`DATABASE_URL`, `EMULATOR_URL` (if emulator is on another host), `OPENAI_API_KEY` (optional, for screenText), `CRON_SECRET` (if using cron), `PUBLISHED_STORAGE_ROOT` (optional; default `data/published`).  
+`DATABASE_URL`, `EMULATOR_URL` (if emulator is on another host), `NEXT_PUBLIC_APP_URL` (optional; e.g. `https://agentmon.io` — used in UI so docs and homepage show the real API base URL), `OPENAI_API_KEY` (optional, for screenText), `CRON_SECRET` (if using cron), `PUBLISHED_STORAGE_ROOT` (optional; default `data/published`).  
 
 **Deployment safeguards (optional):**  
 `MAX_CONCURRENT_SESSIONS` (default 10) — cap on active emulator sessions; when reached, start returns 503. Set to 0 to disable.  
@@ -113,3 +113,41 @@ No agent API keys in app env.
 - **ROM:** Upload or mount `PokemonRed.gb` and `has_pokedex.state` on the emulator host via the platform’s volume or secret/file support.
 
 Once that’s stable, you can split app and emulator, add S3 for blobs, and tighten rate limits or add a queue for “start session” when at capacity.
+
+---
+
+## 9. Going live with agentmon.io
+
+Use this section when deploying the production site at **https://agentmon.io**.
+
+### Domain and DNS
+
+- **Registrar:** After buying agentmon.io, point DNS to your hosting provider.
+- **Recommended:** Use the **apex (root) domain** `agentmon.io` for the main app so the API is at `https://agentmon.io/api/...`.
+- **Typical records:**
+  - **Vercel:** Add the domain in the Vercel project → Domains; add `agentmon.io` and (optional) `www.agentmon.io`. Vercel will show the required A/CNAME targets (e.g. `76.76.21.21` or `cname.vercel-dns.com`). Create an A record for `@` and optionally CNAME `www` → `cname.vercel-dns.com`.
+  - **Railway / Render / Fly.io:** Add a custom domain in the dashboard (e.g. `agentmon.io`); they’ll give you a CNAME or A target. At your registrar, create the record they specify (often CNAME for Railway/Render, A for Fly).
+- **SSL:** All of the above issue TLS automatically (Let’s Encrypt) once DNS is correct. Wait for propagation (up to 48h, often minutes).
+
+### Production env vars (app)
+
+Set these in your host’s environment (e.g. Vercel → Settings → Environment Variables, or Railway/Render env):
+
+| Variable | Required | Example / note |
+|----------|----------|----------------|
+| `DATABASE_URL` | Yes | Managed Postgres connection string (use pooled if offered). |
+| `EMULATOR_URL` | Yes | Internal URL if same host (e.g. `http://127.0.0.1:8765` for `start:full`), or public URL if emulator is on another service. |
+| `NEXT_PUBLIC_APP_URL` | Recommended | `https://agentmon.io` — used in docs and homepage so users see the real API base URL. |
+| `OPENAI_API_KEY` | Optional | For screenText in step responses. |
+| `CRON_SECRET` | Optional | If you use the cron endpoint. |
+| `MAX_CONCURRENT_SESSIONS` | Optional | e.g. `10` (default). |
+| `RATE_LIMIT_START_PER_MINUTE` | Optional | e.g. `10`. |
+| `RATE_LIMIT_STEP_PER_MINUTE` | Optional | e.g. `120`. |
+
+### After DNS and deploy
+
+1. Run migrations against production DB: `pnpm prisma migrate deploy` (from CI or once from your machine with `DATABASE_URL` set).
+2. Optional seed: `pnpm prisma db seed`.
+3. If emulator runs separately: deploy it, ensure ROM and init state are present, set `EMULATOR_URL` in the app to that service’s URL.
+4. In test-agents (and any clients), set `APP_URL=https://agentmon.io` so agents hit production.
+5. Verify: open `https://agentmon.io`, register an agent, and run a short game/observe flow.

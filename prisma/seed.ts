@@ -190,6 +190,32 @@ async function main() {
     console.log("Template dataset published:", datasetRecord.id);
   }
 
+  // 11 seasons: first catch (beyond starter), badges 1-8, Elite Four, complete dex
+  // Season 1 = first_to_catch_n 2 so the starter alone doesn't end it (starter counts as 1 owned).
+  const SEASONS: { number: number; name: string; description: string; goalKind: string; goalValue: number }[] = [
+    { number: 1, name: "First Pokémon Catch", description: "First agent to catch a Pokémon beyond the starter", goalKind: "first_to_catch_n", goalValue: 2 },
+    { number: 2, name: "1st Badge", description: "First agent to earn the Boulder Badge", goalKind: "first_to_badges_n", goalValue: 1 },
+    { number: 3, name: "2nd Badge", description: "First agent to earn the Cascade Badge", goalKind: "first_to_badges_n", goalValue: 2 },
+    { number: 4, name: "3rd Badge", description: "First agent to earn the Thunder Badge", goalKind: "first_to_badges_n", goalValue: 3 },
+    { number: 5, name: "4th Badge", description: "First agent to earn the Rainbow Badge", goalKind: "first_to_badges_n", goalValue: 4 },
+    { number: 6, name: "5th Badge", description: "First agent to earn the Soul Badge", goalKind: "first_to_badges_n", goalValue: 5 },
+    { number: 7, name: "6th Badge", description: "First agent to earn the Marsh Badge", goalKind: "first_to_badges_n", goalValue: 6 },
+    { number: 8, name: "7th Badge", description: "First agent to earn the Volcano Badge", goalKind: "first_to_badges_n", goalValue: 7 },
+    { number: 9, name: "8th Badge", description: "First agent to earn the Earth Badge", goalKind: "first_to_badges_n", goalValue: 8 },
+    { number: 10, name: "Elite Four", description: "First agent to reach the Elite Four (8 badges)", goalKind: "first_to_badges_n", goalValue: 8 },
+    { number: 11, name: "Complete Dex", description: "First agent to catch all 151 Pokémon", goalKind: "first_to_catch_n", goalValue: 151 },
+  ];
+
+  for (const s of SEASONS) {
+    const status = s.number === 1 ? "active" : "pending";
+    await prisma.season.upsert({
+      where: { number: s.number },
+      create: { number: s.number, name: s.name, description: s.description, goalKind: s.goalKind, goalValue: s.goalValue, status },
+      update: { name: s.name, description: s.description, goalKind: s.goalKind, goalValue: s.goalValue, status },
+    });
+  }
+  console.log("11 seasons seeded.");
+
   console.log("Seed complete.");
 }
 

@@ -91,33 +91,3 @@ def log_play_run(total_steps: int, **kwargs) -> None:
         f.write(json.dumps(record) + "\n")
 
 
-def get_trajectories_dir() -> Path:
-    from rl_agent.config import TRAJECTORIES_DIR
-    p = Path(TRAJECTORIES_DIR)
-    p.mkdir(parents=True, exist_ok=True)
-    return p
-
-
-def save_play_trajectory(obs_list: list, actions_list: list, rewards_list: list) -> str | None:
-    """
-    Save recorded (obs, action, reward) from a play run to TRAJECTORIES_DIR/run_<ts>.npz.
-    obs_list: list of observation dicts (each with screens, health, level, badges, events, map, recent_actions).
-    Returns the path saved, or None if lists are empty.
-    """
-    if not obs_list or not actions_list or not rewards_list:
-        return None
-    import numpy as np
-    dir_path = get_trajectories_dir()
-    path = dir_path / f"run_{int(time.time() * 1000)}.npz"
-    # Stack obs dicts into arrays
-    keys = list(obs_list[0].keys())
-    obs_arrays = {}
-    for k in keys:
-        obs_arrays[k] = np.stack([o[k] for o in obs_list], axis=0)
-    np.savez_compressed(
-        path,
-        **obs_arrays,
-        actions=np.array(actions_list, dtype=np.int64),
-        rewards=np.array(rewards_list, dtype=np.float32),
-    )
-    return str(path)

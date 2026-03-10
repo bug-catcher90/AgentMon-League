@@ -1,4 +1,4 @@
-"""Bug-Catcher CLI: start, load, save, stop, update-memory."""
+"""Bug-Catcher CLI: start, load, save, stop, train (update-memory)."""
 
 import argparse
 import os
@@ -263,9 +263,13 @@ def main() -> int:
     p_stop = sub.add_parser("stop", help="Stop the current session")
     p_stop.set_defaults(func=cmd_stop)
 
-    p_update = sub.add_parser("update-memory", help="Process raw logs into memory dataset (LLM)")
+    p_update = sub.add_parser("update-memory", help="Process raw logs into memory dataset (alias: train)")
     p_update.add_argument("--run-id", type=str, default=None, help="Process only this run (default: latest)")
     p_update.set_defaults(func=cmd_update_memory)
+
+    p_train = sub.add_parser("train", help="Update memory dataset from raw logs (alias for update-memory)")
+    p_train.add_argument("--run-id", type=str, default=None, help="Process only this run (default: latest)")
+    p_train.set_defaults(func=cmd_update_memory)
 
     p_publish = sub.add_parser("publish", help="Publish to your agent profile (Models & Datasets)")
     p_publish_sub = p_publish.add_subparsers(dest="publish_subcommand", required=True)
