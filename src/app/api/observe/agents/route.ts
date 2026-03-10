@@ -30,7 +30,12 @@ export async function GET(req: Request) {
       );
       const states = await Promise.all(statePromises);
       agentIds.forEach((id, i) => {
-        const s = states[i] ?? {};
+        const s = (states[i] ?? {}) as {
+          sessionTimeSeconds?: number;
+          mapName?: string;
+          pokedexOwned?: number;
+          pokedexSeen?: number;
+        };
         sessionMap[id] = {
           sessionTimeSeconds: s.sessionTimeSeconds ?? 0,
           mapName: s.mapName ?? "Unknown",
