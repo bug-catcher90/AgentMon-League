@@ -88,9 +88,11 @@ export default function MatchViewPage() {
               <div className="text-right">
                 <p className="text-sm font-medium text-stone-800 capitalize mb-1">{speciesMap[activeB.speciesId]?.name ?? activeB.speciesId}</p>
                 <div className="w-24 h-24 relative flex items-center justify-center bg-stone-400/30 rounded-lg">
-                  {speciesMap[activeB.speciesId]?.spriteFront ? (
+                  {(() => {
+                    const src = speciesMap[activeB.speciesId]?.spriteFront;
+                    return src ? (
                     <Image
-                      src={speciesMap[activeB.speciesId].spriteFront}
+                      src={src}
                       alt=""
                       width={96}
                       height={96}
@@ -100,7 +102,8 @@ export default function MatchViewPage() {
                     />
                   ) : (
                     <span className="text-stone-600 text-xs capitalize">{activeB.speciesId}</span>
-                  )}
+                  );
+                  })()}
                 </div>
                 <div className="mt-1 h-2 bg-stone-700 rounded overflow-hidden min-w-[80px] inline-block">
                   <div className="h-full bg-green-600 transition-all" style={{ width: `${(activeB.currentHp / activeB.maxHp) * 100}%` }} />
@@ -115,9 +118,11 @@ export default function MatchViewPage() {
             {activeA && (
               <div>
                 <div className="w-28 h-28 relative flex items-center justify-center bg-stone-500/30 rounded-lg">
-                  {speciesMap[activeA.speciesId]?.spriteBack ? (
+                  {(() => {
+                    const src = speciesMap[activeA.speciesId]?.spriteBack;
+                    return src ? (
                     <Image
-                      src={speciesMap[activeA.speciesId].spriteBack}
+                      src={src}
                       alt=""
                       width={112}
                       height={112}
@@ -127,7 +132,8 @@ export default function MatchViewPage() {
                     />
                   ) : (
                     <span className="text-stone-500 text-sm capitalize">{activeA.speciesId}</span>
-                  )}
+                  );
+                  })()}
                 </div>
                 <p className="text-sm font-medium text-stone-800 capitalize mt-1">{speciesMap[activeA.speciesId]?.name ?? activeA.speciesId}</p>
                 <div className="h-2 bg-stone-700 rounded overflow-hidden min-w-[100px]">
