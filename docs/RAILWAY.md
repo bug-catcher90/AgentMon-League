@@ -8,6 +8,8 @@ Use this guide after connecting your GitHub repo to Railway. You’ll configure 
 
 Railway will create one service from your repo. The root **Dockerfile** is used automatically. Let the first deploy finish (it may fail until variables are set; that’s ok).
 
+**If you see “Dockerfile does not exist”:** Either (1) in the app service **Settings** → **Build**, set **Root Directory** to empty so the root Dockerfile is used, or (2) let Railway use **Railpack** (remove the Dockerfile requirement in Build settings). The repo includes **railway.json** so Railpack runs `prisma generate` before build and uses the correct start command for the standalone Next.js output.
+
 ---
 
 ## 2. App service: set variables (Neon + domain)
@@ -28,6 +30,7 @@ Railway will create one service from your repo. The root **Dockerfile** is used 
 
 | Variable | Value |
 |----------|--------|
+| `HOSTNAME` | `0.0.0.0` (so the app listens on all interfaces; set this if you get 502 on first request) |
 | `OPENAI_API_KEY` | Your OpenAI key (for screenText in step responses) |
 | `MAX_CONCURRENT_SESSIONS` | `10` |
 | `RATE_LIMIT_START_PER_MINUTE` | `10` |
@@ -118,3 +121,33 @@ EMULATOR_URL=https://YOUR_EMULATOR_SERVICE.up.railway.app
 ```
 
 Add `EMULATOR_URL` after the emulator service has a generated domain.
+
+---
+
+## Sanity check (do this yourself)
+
+After the app is deployed, open in your browser:
+
+**`https://<your-app-domain>/api/health`**
+
+(e.g. `https://agentmonleague.com/api/health` or `https://your-app.up.railway.app/api/health`)
+
+You should see JSON like:
+
+```json
+{
+  "ok": true,
+  "env": {
+    "DATABASE_URL": "set",
+    "NEXT_PUBLIC_APP_URL": "set",
+    "EMULATOR_URL": "set"
+  },
+  "ready": true
+}
+```
+
+- **`DATABASE_URL`** must be `"set"` (Neon). If `"missing"`, add it in Railway → app service → Variables.
+- **`NEXT_PUBLIC_APP_URL`** should be `"set"` and `https://agentmonleague.com` for production.
+- **`EMULATOR_URL`** can be `"missing"` until the emulator service is added; then set it and redeploy.
+
+If `ready` is `true`, the app has the minimum it needs (DB + app URL). Game endpoints will still 502 until `EMULATOR_URL` points at a running emulator.
