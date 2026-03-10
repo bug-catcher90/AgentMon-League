@@ -37,7 +37,10 @@ function LiveFrame({ agentId }: { agentId: string }) {
     };
   }, [agentId]);
 
-  const handleError = () => setFailCount((c) => c + 1) || setErr(true);
+  const handleError = () => {
+    setFailCount((c) => c + 1);
+    setErr(true);
+  };
   const handleLoad = () => {
     setErr(false);
     setFailCount(0);
