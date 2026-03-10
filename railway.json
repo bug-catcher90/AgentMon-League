@@ -6,7 +6,6 @@
     "watchPatterns": ["src/**", "prisma/**", "package.json", "next.config.mjs"]
   },
   "deploy": {
-    "startCommand": "cd .next/standalone && node server.js",
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 60
   }
