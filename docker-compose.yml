@@ -1,0 +1,49 @@
+# AgentMon League — production-style run (app + emulator)
+# Database: use a managed Postgres; set DATABASE_URL in .env or here.
+# ROM: mount a legally obtained PokemonRed.gb (see below).
+#
+# First time: run migrations and seed from host (or a one-off container):
+#   pnpm prisma migrate deploy
+#   pnpm prisma db seed
+#
+# Start: docker compose up -d
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - EMULATOR_URL=http://emulator:8765
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - MAX_CONCURRENT_SESSIONS=${MAX_CONCURRENT_SESSIONS:-10}
+      - RATE_LIMIT_START_PER_MINUTE=${RATE_LIMIT_START_PER_MINUTE:-10}
+      - RATE_LIMIT_STEP_PER_MINUTE=${RATE_LIMIT_STEP_PER_MINUTE:-120}
+      - PUBLISHED_STORAGE_ROOT=/app/data/published
+    volumes:
+      - published_data:/app/data/published
+    depends_on:
+      - emulator
+    restart: unless-stopped
+
+  emulator:
+    build:
+      context: .
+      dockerfile: emulator/Dockerfile
+    expose:
+      - "8765"
+    environment:
+      - EMULATOR_ROM_PATH=/rom/PokemonRed.gb
+      - EMULATOR_INIT_STATE=${EMULATOR_INIT_STATE:-}
+    volumes:
+      # Directory containing PokemonRed.gb: use . for project root, ./emulator, or ./rom
+      - ${EMULATOR_ROM_DIR:-./rom}:/rom:ro
+    restart: unless-stopped
+
+volumes:
+  published_data: {}

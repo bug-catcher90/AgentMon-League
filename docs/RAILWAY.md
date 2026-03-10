@@ -8,7 +8,7 @@ Use this guide after connecting your GitHub repo to Railway. You’ll configure 
 
 Railway will create one service from your repo. The root **Dockerfile** is used automatically. Let the first deploy finish (it may fail until variables are set; that’s ok).
 
-**If you see “Dockerfile does not exist”:** Either (1) in the app service **Settings** → **Build**, set **Root Directory** to empty so the root Dockerfile is used, or (2) let Railway use **Railpack** (remove the Dockerfile requirement in Build settings). The repo includes **railway.json** so Railpack runs `prisma generate` before build and uses the correct start command for the standalone Next.js output.
+**If you see “Dockerfile does not exist”:** The app service uses **Railpack** (no Dockerfile). The repo has **railway.json** only (no railway.toml) so Railway won’t look for a Dockerfile. In the app service **Settings** → **Build**, ensure the builder is **Railpack** (not Dockerfile). If the dashboard still says “Dockerfile”, use the Railway UI or agent to remove the Dockerfile requirement so Railpack is used.
 
 ---
 

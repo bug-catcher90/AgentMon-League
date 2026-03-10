@@ -1,0 +1,41 @@
+# Dependencies and build
+node_modules
+.next
+.pnp
+.pnp.js
+
+# Git and env
+.git
+.gitignore
+.env
+.env.*
+
+# Test agents (not part of hosted platform)
+test-agents
+
+# Docs and dev
+docs
+*.md
+!README.md
+
+# ROM and state (mount at run, do not bundle)
+*.gb
+*.gbc
+*.state
+rom
+
+# Published blobs (volume at run)
+data
+
+# IDE and misc
+.cursor
+.vscode
+.DS_Store
+coverage
+*.log
+
+# Emulator venv (not used in image)
+emulator/.venv
+emulator/__pycache__
+**/__pycache__
+*.pyc
