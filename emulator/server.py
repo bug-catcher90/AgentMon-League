@@ -85,13 +85,17 @@ sessions: dict[str, dict] = {}  # agent_id -> { "pyboy", "screen" }
 def _rom_path() -> Path:
     """Resolve ROM path. Tries default locations if unset or placeholder."""
     raw = (ROM_PATH or "").strip()
-    # Placeholder or default: try emulator dir and project root
+    # Placeholder or default: try emulator/rom/, emulator/, and project root
     if not raw or raw == "PokemonRed.gb" or "/path/to/your" in raw or "path/to" in raw:
         base = Path(__file__).resolve().parent
-        for candidate in [base / "PokemonRed.gb", base.parent / "PokemonRed.gb"]:
+        for candidate in [
+            base / "rom" / "PokemonRed.gb",
+            base / "PokemonRed.gb",
+            base.parent / "PokemonRed.gb",
+        ]:
             if candidate.exists():
                 return candidate
-        return base / "PokemonRed.gb"  # so error message shows where we looked
+        return base / "rom" / "PokemonRed.gb"  # so error message shows where we looked
     p = Path(raw)
     if not p.is_absolute():
         p = Path(__file__).resolve().parent / p
@@ -102,7 +106,7 @@ def _init_state_path() -> Path | None:
     """
     Resolve path to the init state file (load when starting a new session).
     - If EMULATOR_INIT_STATE is set and the file exists, use it.
-    - Else if has_pokedex.state exists in the emulator directory, use it (start after Oak's parcel).
+    - Else if has_pokedex.state exists in emulator/rom/ or emulator/, use it.
     - Else return None (game starts from ROM).
     """
     base = Path(__file__).resolve().parent
@@ -113,9 +117,9 @@ def _init_state_path() -> Path | None:
         if p.exists():
             return p
         return None
-    default = base / DEFAULT_INIT_STATE_FILENAME
-    if default.exists():
-        return default
+    for candidate in [base / "rom" / DEFAULT_INIT_STATE_FILENAME, base / DEFAULT_INIT_STATE_FILENAME]:
+        if candidate.exists():
+            return candidate
     return None
 
 
@@ -166,7 +170,7 @@ def session_start(body: StartBody):
             status_code=400,
             detail=(
                 f"ROM not found at {rom}. "
-                "Put your Pokemon Red ROM (e.g. PokemonRed.gb) in the project root or emulator/ folder, "
+                "Put your Pokemon Red ROM in emulator/rom/, emulator/, or project root, "
                 "or set EMULATOR_ROM_PATH to its full path before starting the server."
             ),
         )

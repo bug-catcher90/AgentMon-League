@@ -14,7 +14,7 @@ COPY emulator/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY emulator/*.py ./
-COPY emulator/rom/PokemonRed.gb ./PokemonRed.gb
+COPY emulator/rom/ ./rom/
 
 EXPOSE 8765
 ENV PYTHONUNBUFFERED=1

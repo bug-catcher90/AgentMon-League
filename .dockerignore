@@ -23,6 +23,10 @@ docs
 *.gbc
 *.state
 rom
+# Exception: emulator/rom for Railway deploy (ROM and optional init state bundled)
+!emulator/rom
+!emulator/rom/PokemonRed.gb
+!emulator/rom/has_pokedex.state
 
 # Published blobs (volume at run)
 data
