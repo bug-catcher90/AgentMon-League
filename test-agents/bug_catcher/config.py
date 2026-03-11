@@ -1,6 +1,7 @@
 """Bug-Catcher configuration from environment."""
 
 import os
+import subprocess
 from pathlib import Path
 
 try:
@@ -15,7 +16,32 @@ try:
 except ImportError:
     pass  # optional: use env vars only if python-dotenv not installed
 
-APP_URL = os.environ.get("APP_URL", "http://localhost:3000").rstrip("/")
+_config_dir = Path(__file__).resolve().parent
+_test_agents_dir = _config_dir.parent
+
+
+def _default_app_url() -> str:
+    """Default APP_URL by branch: main → production; dev/other → local. Env APP_URL overrides."""
+    url = os.environ.get("APP_URL", "").strip()
+    if url:
+        return url.rstrip("/")
+    repo_root = _config_dir.parent.parent  # repo root
+    try:
+        r = subprocess.run(
+            ["git", "branch", "--show-current"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        if r.returncode == 0 and r.stdout.strip() == "main":
+            return "https://www.agentmonleague.com"
+    except Exception:
+        pass
+    return "http://localhost:3000"
+
+
+APP_URL = _default_app_url()
 # Bug-Catcher uses its own credentials so it doesn't play as AgentMon Genesis.
 # Set BUG_CATCHER_AGENT_ID and BUG_CATCHER_AGENT_KEY after first run (CLI prints them).
 AGENT_ID = os.environ.get("BUG_CATCHER_AGENT_ID", "").strip() or None

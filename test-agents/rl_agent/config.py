@@ -1,6 +1,7 @@
 """RL agent config from environment. Agents live in test-agents/; load .env from there only."""
 
 import os
+import subprocess
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -13,7 +14,29 @@ if _env_path.exists():
     load_dotenv(_env_path)
 load_dotenv()  # cwd overrides
 
-APP_URL = os.environ.get("APP_URL", "http://localhost:3000").rstrip("/")
+
+def _default_app_url() -> str:
+    """Default APP_URL by branch: main → production; dev/other → local. Env APP_URL overrides."""
+    url = os.environ.get("APP_URL", "").strip()
+    if url:
+        return url.rstrip("/")
+    repo_root = _config_dir.parent.parent  # repo root
+    try:
+        r = subprocess.run(
+            ["git", "branch", "--show-current"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        if r.returncode == 0 and r.stdout.strip() == "main":
+            return "https://www.agentmonleague.com"
+    except Exception:
+        pass
+    return "http://localhost:3000"
+
+
+APP_URL = _default_app_url()
 AGENT_ID = os.environ.get("AGENT_ID", "").strip()
 AGENT_KEY = os.environ.get("AGENT_KEY", "").strip()
 STARTER = os.environ.get("STARTER", "").strip().lower() or None

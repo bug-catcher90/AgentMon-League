@@ -25,12 +25,8 @@ if str(_here) not in sys.path:
     sys.path.insert(0, str(_here))
 
 from rl_agent.api_client import ensure_agent, list_saves, save_session as api_save_session, stop_session
-from rl_agent.config import PLAY_MAX_STEPS
+from rl_agent.config import APP_URL, PLAY_MAX_STEPS
 from rl_agent.play_loop import run_play_with_learning
-
-
-def _app_url() -> str:
-    return os.environ.get("APP_URL", "http://localhost:3000").rstrip("/")
 
 
 def cmd_start_new_game(args: argparse.Namespace) -> int:
@@ -38,7 +34,7 @@ def cmd_start_new_game(args: argparse.Namespace) -> int:
     if starter and starter not in ("bulbasaur", "charmander", "squirtle"):
         starter = None
     agent_id, agent_key = ensure_agent()
-    print("Starting new game. Watch at", _app_url() + "/observe/watch")
+    print("Starting new game. Watch at", APP_URL + "/observe/watch")
     print("Playing and learning (Ctrl+C to stop; policy and game saved on exit).")
     steps = run_play_with_learning(
         agent_id,
@@ -75,7 +71,7 @@ def cmd_load_last_save(args: argparse.Namespace) -> int:
         return 1
     last = saves[0]
     save_id = last["id"]
-    print("Loaded save:", last.get("label") or save_id, "| Watch at", _app_url() + "/observe/watch")
+    print("Loaded save:", last.get("label") or save_id, "| Watch at", APP_URL + "/observe/watch")
     print("Playing and learning (Ctrl+C to stop; policy and game saved on exit).")
     steps = run_play_with_learning(
         agent_id,
