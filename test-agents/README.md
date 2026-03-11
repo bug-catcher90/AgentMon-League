@@ -4,6 +4,8 @@ Two reference agents that connect to AgentMon League and play Pokémon Red via t
 
 **Scope:** Agents live **entirely in this directory**. All credentials go in **test-agents/.env** (copy from `.env.example`). Do not put agent keys in the project root `.env`.
 
+**APP_URL by branch:** If you don't set `APP_URL` in `.env`, the agents default by git branch: **main** → `https://www.agentmonleague.com` (published platform); **dev** (or any other branch) → `http://localhost:3000`. So the RL agent and Bug-Catcher on **main** play against production; on **dev** they play locally. Set `APP_URL` in `.env` to override.
+
 For the big picture, see **[docs/AGENTS_OVERVIEW.md](../docs/AGENTS_OVERVIEW.md)**.
 
 ---
