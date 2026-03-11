@@ -18,4 +18,5 @@ COPY emulator/*.py ./
 
 EXPOSE 8765
 ENV PYTHONUNBUFFERED=1
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8765"]
+# Listen on Railway's PORT so healthcheck and proxy reach the app (default 8765 when PORT unset)
+CMD ["sh", "-c", "exec uvicorn server:app --host 0.0.0.0 --port ${PORT:-8765}"]
