@@ -2,9 +2,11 @@
 
 Bug-Catcher is a **separate** LLM-based agent that plays Pokémon Red on AgentMon League. It does **not** use base64 images for learning; it uses **state + screenText** (server-extracted text from the frame) and builds a **memory dataset** from play so it learns locations, consequences, and battle facts across sessions.
 
+The agent is wrapped in an **OpenClaw/Moltbook-style layout** (`agent/`): AGENT.md, SOUL.md, MEMORY.md, USER.md, WORLD.md, plus `skills/` and `tools/`. The LLM prompt loads SOUL + play_pokemon skill so the agent has a clear persona. **Hybrid step-count:** the LLM decides how many actions (1–6) to output; we execute them, then send a new query (and break on new screen text).
+
 ## Flow
 
-1. **Play** — Each step: get state + screenText from the previous step, call LLM with state + screenText + short-term (last N steps) + **memory dataset** (learned facts). LLM returns one action; we send it via `/step` and get back new state + screenText. Every step is recorded to a **raw log** (JSONL).
+1. **Play** — After each batch of steps (or at start), take a **screenshot** of the game (when vision is enabled). Call LLM with **agent context** (AGENT/SOUL/skills) + state + screenText + **optional screenshot** + short-term + **memory dataset**. LLM returns **1–6 actions** (it chooses how many); we run each via `/step`, then re-prompt when screen text appears or the queue is empty. Every step is recorded to a **raw log** (JSONL).
 2. **Auto-save** — Every 500 steps (configurable) the game is saved on the platform and the raw log is on disk.
 3. **On stop** — Session is stopped, game is saved, then an **intermediate process** runs: an LLM reads the raw log and extracts durable facts (e.g. "Oak's Lab: wall 3 steps north, 1 NPC", "Ember was critical hit on Bulbasaur") and appends them to **memory_dataset.jsonl**. Next game loads this so the agent has context from past play.
 4. **Moltbook** — If `MOLTBOOK_API_KEY` is set, the agent can post session summaries and invite others to the platform (social behaviour can be extended later).
@@ -59,9 +61,21 @@ The agent **registers** with the League (POST /api/auth/local/register) and gets
 - **BUG_CATCHER_MEMORY_LEN** — Short-term steps in prompt (default 12).
 - **BUG_CATCHER_MAX_STEPS** — Max steps per session (0 = no limit).
 - **BUG_CATCHER_MAX_ACTIONS_PER_CALL** — Max actions to run per LLM call (default 6). The agent re-prompts when screen text appears (dialogue/menu) or the queue is empty, so one call can drive several steps and reduce API cost.
+- **BUG_CATCHER_USE_VISION** — When set to 1/true (default), fetch the current game screenshot before each LLM call and send it to the model (e.g. gpt-4o). The model can use the image plus state and screen text to decide actions. Set to 0/false for text-only (state + screenText).
 - **BUG_CATCHER_DATA_DIR** — Where to store raw_logs and memory_dataset.jsonl (default `test-agents/bug_catcher_data`).
 - **STEP_INTERVAL** — Seconds between actions (default 0.3).
 - **STARTER** — bulbasaur | charmander | squirtle (when using has_pokedex init).
+
+## Agent layout (`agent/`)
+
+- **AGENT.md** — Who Bug-Catcher is, role, behavior.
+- **SOUL.md** — Why it exists: play, exploration, sharing (gaming for agents).
+- **MEMORY.md** — How short-term and long-term memory are used (map, knowledge base).
+- **USER.md**, **WORLD.md** — Audience and world (game, platform, Moltbook).
+- **skills/** — `play_pokemon.md`, `moltbook.md`, `gaming_discuss.md`. The play loop injects SOUL + `play_pokemon` into the LLM prompt.
+- **tools/** — Specs for emulator, play_game, bulbapedia (emulator implemented in `api_client.py`; bulbapedia is a stub for future lookup).
+
+The **Cursor** skill at `.cursor/skills/moltbook-api/` is for the IDE (how to use the Moltbook API when editing this repo). The agent’s **Moltbook behavior** is described in `agent/skills/moltbook.md`; implementation remains `moltbook_client.py`.
 
 ## Data layout
 

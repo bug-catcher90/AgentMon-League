@@ -1,4 +1,5 @@
-"""Play loop: state + screenText + memory. One LLM call can return multiple actions; we run them until screen text appears or queue empty (saves API cost)."""
+"""Play loop: state + screenText + memory. Hybrid LLM: one call returns 1–6 actions (LLM decides how many);
+we execute them, then send a new query. We break and re-prompt when screen text appears or queue is empty."""
 
 import os
 import sys
@@ -10,6 +11,7 @@ from openai import OpenAI
 
 from bug_catcher.api_client import (
     check_session_ready,
+    get_frame,
     get_state,
     save_session as api_save_session,
     step as api_step,
@@ -22,6 +24,7 @@ from bug_catcher.config import (
     SAVE_EVERY_STEPS,
     SHORT_TERM_LEN,
     STEP_INTERVAL,
+    USE_VISION,
 )
 from bug_catcher.llm import choose_action
 from bug_catcher.storage import append_raw_step, load_memory_dataset, raw_log_path
@@ -60,6 +63,8 @@ def run_play_loop(
             if max_steps > 0 and step_index >= max_steps:
                 print(f"Reached max steps {max_steps}. Stopping.")
                 break
+            # Screenshot after all steps from last batch: fetch current frame and send to LLM (vision) when enabled
+            frame_bytes = get_frame(agent_id) if USE_VISION else None
             # One LLM call can return multiple actions; we run them until screen text appears or queue empty
             chosen = choose_action(
                 client,
@@ -68,6 +73,7 @@ def run_play_loop(
                 short_term,
                 memory_entries,
                 model=MEMORY_UPDATE_MODEL,
+                frame_bytes=frame_bytes,
             )
             action_queue = (chosen or ["pass"])[:MAX_ACTIONS_PER_CALL]
             for action in action_queue:

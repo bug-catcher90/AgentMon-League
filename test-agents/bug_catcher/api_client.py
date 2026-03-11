@@ -67,6 +67,12 @@ def start_session(
         json=payload,
         timeout=10,
     )
+    if r.status_code == 401:
+        raise RuntimeError(
+            "Start failed: 401 Unauthorized. The API key was rejected. "
+            "Ensure BUG_CATCHER_AGENT_ID and BUG_CATCHER_AGENT_KEY in test-agents/.env match an agent on this server. "
+            "If this is a new or reset environment, run 'bugcatcher register' (against this APP_URL) and add the printed credentials to .env."
+        )
     if r.status_code != 200:
         raise RuntimeError(f"Start failed: {r.status_code} {r.text}")
     return r.json()
@@ -151,6 +157,21 @@ def run_actions(
     if r.status_code != 200:
         raise RuntimeError(f"Actions failed: {r.status_code} {r.text}")
     return r.json()
+
+
+def get_frame(agent_id: str) -> bytes | None:
+    """Fetch current game screen as PNG. Returns None on 404 or request error (caller can fall back to text-only)."""
+    try:
+        r = requests.get(
+            f"{APP_URL}/api/observe/emulator/frame",
+            params={"agentId": agent_id, "t": int(time.time() * 1000)},
+            timeout=10,
+        )
+        if r.status_code != 200:
+            return None
+        return r.content
+    except Exception:
+        return None
 
 
 def check_session_ready(agent_id: str) -> None:

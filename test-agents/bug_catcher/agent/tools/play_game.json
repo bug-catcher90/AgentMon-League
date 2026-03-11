@@ -1,0 +1,15 @@
+{
+  "name": "play_game",
+  "description": "Run a sequence of N button presses in the emulator and return the final state + screenText (and optionally per-step records). Used to 'gather' results before a single LLM call.",
+  "implementation": "bug_catcher.api_client.run_actions(agent_key, actions) or loop step() and collect state/screenText",
+  "input": {
+    "actions": "Array of 1–N valid action words.",
+    "speed": "Optional. Emulator speed hint."
+  },
+  "output": {
+    "state": "Final game state after last action.",
+    "screenText": "Screen text after last action.",
+    "feedback": "Optional feedback from last step."
+  },
+  "note": "The current play loop runs one step at a time (step) and records each for raw log and short-term memory; run_actions can be used for batch execution when per-step logging is not required."
+}

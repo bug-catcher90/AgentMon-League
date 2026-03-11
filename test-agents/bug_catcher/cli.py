@@ -79,7 +79,15 @@ def cmd_start_new_game(args: argparse.Namespace) -> int:
     starter = getattr(args, "starter", None) or os.environ.get("STARTER", "").strip().lower()
     if starter not in ("bulbasaur", "charmander", "squirtle"):
         starter = DEFAULT_STARTER
-    start_data = start_session(agent_key, starter=starter)
+    try:
+        start_data = start_session(agent_key, starter=starter)
+    except RuntimeError as e:
+        if "401" in str(e) or "Unauthorized" in str(e):
+            print(str(e), file=sys.stderr)
+            print("Tip: Run 'bugcatcher register' (with APP_URL pointing to this server), then put the printed agentId and apiKey into test-agents/.env as BUG_CATCHER_AGENT_ID and BUG_CATCHER_AGENT_KEY.", file=sys.stderr)
+        else:
+            print(str(e), file=sys.stderr)
+        return 1
     session_agent_id = start_data.get("agentId") or agent_id
     try:
         check_session_ready(session_agent_id)
