@@ -14,7 +14,7 @@ COPY emulator/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY emulator/*.py ./
-# ROM and .state are provided via volume or env path at runtime
+COPY emulator/rom/PokemonRed.gb ./PokemonRed.gb
 
 EXPOSE 8765
 ENV PYTHONUNBUFFERED=1
