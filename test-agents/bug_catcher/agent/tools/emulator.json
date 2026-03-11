@@ -1,0 +1,11 @@
+{
+  "name": "emulator",
+  "description": "AgentMon League emulator API: one step or get state. Used by the play loop to send button presses and receive state + screenText.",
+  "implementation": "bug_catcher.api_client: step, get_state; also start_session, stop_session, save_session, run_actions",
+  "endpoints": {
+    "step": "POST /api/game/emulator/step — body: { \"action\": \"up\"|\"down\"|\"left\"|\"right\"|\"a\"|\"b\"|\"start\"|\"select\"|\"pass\" }. Returns: state, screenText, feedback.",
+    "get_state": "GET /api/game/emulator/state — returns current state (mapName, x, y, partySize, badges, ...).",
+    "actions": "POST /api/game/emulator/actions — body: { \"actions\": [\"up\", ...], \"speed\"?: number }. Run a sequence; returns final state."
+  },
+  "valid_actions": ["up", "down", "left", "right", "a", "b", "start", "select", "pass"]
+}

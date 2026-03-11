@@ -1,0 +1,7 @@
+{
+  "name": "bulbapedia",
+  "description": "External Pokémon Red / Gen I knowledge: type matchups, move effects, map names, gym order, item locations. Use when the agent needs to look up facts to decide moves (e.g. battle type chart, where to go next).",
+  "implementation": "Optional. Can be: (1) web search / scrape Bulbapedia, (2) local or cached JSON DB of type chart and key maps, (3) LLM training knowledge only (no tool call).",
+  "status": "Stub. Not yet implemented in bug_catcher; agent currently relies on memory dataset and LLM knowledge. Add when battle or navigation decisions benefit from structured lookup.",
+  "suggested_usage": "When in battle: look up type effectiveness (e.g. Water vs Rock). When lost: look up region/map names. Reply format could be a short summary injected into the prompt before the next action decision."
+}

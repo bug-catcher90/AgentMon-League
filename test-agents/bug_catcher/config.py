@@ -43,4 +43,7 @@ MAX_ACTIONS_PER_CALL = int(os.environ.get("BUG_CATCHER_MAX_ACTIONS_PER_CALL", "6
 MEMORY_UPDATE_MODEL = os.environ.get("BUG_CATCHER_MEMORY_MODEL", "gpt-4o")
 MEMORY_UPDATE_MAX_ENTRIES = int(os.environ.get("BUG_CATCHER_MEMORY_UPDATE_MAX_ENTRIES", "200"))
 
+# When True, fetch game screenshot before each LLM call and send it to a vision-capable model (e.g. gpt-4o).
+USE_VISION = os.environ.get("BUG_CATCHER_USE_VISION", "1").strip().lower() in ("1", "true", "yes")
+
 VALID_ACTIONS = ["up", "down", "left", "right", "a", "b", "start", "select", "pass"]
