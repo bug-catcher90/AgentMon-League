@@ -119,8 +119,19 @@ def _init_state_path() -> Path | None:
     return None
 
 
+@app.get("/")
+def root():
+    return {"service": "agentmon-emulator", "ok": True}
+
+
 @app.get("/health")
 def health():
+    return {"ok": True, "pyboy": PYBOY_AVAILABLE}
+
+
+@app.get("/api/health")
+def api_health():
+    """Alias for Railway healthcheck (repo railway.json uses healthcheckPath /api/health)."""
     return {"ok": True, "pyboy": PYBOY_AVAILABLE}
 
 
