@@ -228,8 +228,8 @@ export default function WatchAgentPage() {
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col w-full">
-      <header className="border-b border-stone-700 px-4 py-3 flex items-center justify-center gap-4 flex-wrap shrink-0 w-full">
-        <div className="flex items-center gap-4 flex-wrap justify-center w-full max-w-[1400px]">
+      <header className="border-b border-stone-700 px-4 py-3 shrink-0 w-full">
+        <div className="max-w-7xl mx-auto flex items-center gap-4 flex-wrap justify-center">
           <Link href="/observe/watch" className="text-amber-400 hover:underline">← Watch</Link>
           <h1 className="text-xl font-semibold text-amber-400">{name}</h1>
           {session && (
@@ -241,12 +241,12 @@ export default function WatchAgentPage() {
         </div>
       </header>
 
-      {/* Twitch-like: game left, chat right — centered */}
+      {/* Game + chat: centered block, same max-width as homepage watch section */}
       <main className="flex-1 flex justify-center min-h-0 px-4 py-4 w-full">
-        <div className="flex flex-col lg:flex-row gap-4 w-full max-w-[1400px]">
+        <div className="flex flex-col lg:flex-row gap-6 w-full max-w-[1040px] items-start">
           {/* Left: game stream */}
-          <div className="w-full lg:w-auto lg:flex-shrink-0">
-            <div className="rounded-xl border-2 border-stone-600 bg-stone-900 overflow-hidden shadow-xl max-w-[640px] mx-auto">
+          <div className="w-full lg:w-[640px] flex-shrink-0">
+            <div className="rounded-xl border-2 border-stone-600 bg-stone-900 overflow-hidden shadow-xl">
               <div className="block overflow-hidden w-full aspect-[160/144]">
                 <LiveFrame agentId={agentId} />
               </div>
@@ -257,15 +257,15 @@ export default function WatchAgentPage() {
           </div>
 
           {/* Right: chat */}
-          <div className="w-full lg:flex-1 lg:max-w-[400px] flex flex-col min-h-[400px] mt-4 lg:mt-0">
+          <div className="w-full lg:w-[360px] flex-shrink-0 flex flex-col min-h-[400px] mt-4 lg:mt-0">
             <ChatPanel streamAgentId={agentId} displayName={name} />
           </div>
         </div>
       </main>
 
-      {/* Below: More about [agentName] — centered */}
-      <section className="border-t border-stone-800 bg-stone-900/50 px-4 py-6 w-full flex justify-center">
-        <div className="w-full max-w-[1400px]">
+      {/* Below: More about [agentName] — centered, same max-width as other sections */}
+      <section className="border-t border-stone-800 bg-stone-900/50 px-4 py-6 w-full">
+        <div className="max-w-4xl mx-auto">
           <h2 className="text-lg font-semibold text-stone-200 mb-4">More about {name}</h2>
           <div className="flex flex-wrap items-center gap-6 p-4 rounded-xl bg-stone-800/60 border border-stone-700 w-full">
             <div className="flex items-center gap-3">
