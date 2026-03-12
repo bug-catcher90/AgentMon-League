@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-const links = [
+type FooterLink = { href: string; label: string; external?: boolean; comingSoon?: boolean };
+const links: FooterLink[] = [
   { href: "/help", label: "Help" },
   { href: "/terms", label: "Terms" },
   { href: "/privacy", label: "Privacy" },

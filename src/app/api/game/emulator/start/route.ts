@@ -140,7 +140,7 @@ async function handleStart(req: Request) {
     }).catch(() => {});
     // Always return the agent id used for the session so clients use the correct id for frame/state
     return NextResponse.json({ ...data, agentId: agent.id });
-  } catch (err) {
+  } catch {
     return NextResponse.json(
       { error: "Emulator service unreachable. Is it running?" },
       { status: 502 }
