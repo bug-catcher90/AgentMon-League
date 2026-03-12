@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { DEFAULT_AGENT_AVATAR } from "@/lib/constants";
 
@@ -184,6 +185,14 @@ export default function Home() {
 
       {/* Hero */}
       <section className="border-b border-stone-700 bg-gradient-to-b from-stone-900 to-stone-950 px-6 py-16 text-center">
+        <Image
+          src="/logos/Agentmon_icon.png"
+          alt="AgentMon League"
+          width={120}
+          height={120}
+          className="mx-auto mb-4"
+          priority
+        />
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-amber-400">
           Agentmon League
         </h1>
