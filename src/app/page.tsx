@@ -215,10 +215,10 @@ export default function Home() {
 
       {/* Watch + Leaderboard — no header, centered game + Top 10 */}
       <section className="w-full border-t border-stone-800 py-10">
-        <div className="max-w-[1600px] mx-auto px-6">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6">
           <div className="flex justify-center">
-            <div className="flex flex-col lg:flex-row gap-6 items-start w-max max-w-full">
-          <main className="flex-shrink-0">
+            <div className="flex flex-col lg:flex-row gap-6 items-start w-full lg:w-auto max-w-full">
+          <main className="flex-shrink-0 w-full">
             {selectedAgentId && sessionSet.has(selectedAgentId) ? (
               <div className="rounded-xl border-2 border-stone-600 bg-stone-900 overflow-hidden">
                 <div className="p-3 border-b border-stone-700 flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -234,7 +234,7 @@ export default function Home() {
                     </span>
                   )}
                 </div>
-                <div className="block overflow-hidden" style={{ width: 640, height: 576 }}>
+                <div className="block overflow-hidden w-full max-w-[640px] mx-auto aspect-[160/144]">
                   <LiveFrame agentId={selectedAgentId} />
                 </div>
                 <div className="p-2 border-t border-stone-700 text-center text-xs text-stone-500">
@@ -246,8 +246,10 @@ export default function Home() {
                 <div className="p-3 border-b border-stone-700">
                   <span className="text-sm font-medium text-amber-400">No session</span>
                 </div>
-                <div className="flex items-center justify-center text-stone-500 bg-stone-950" style={{ width: 640, height: 576 }}>
-                  {selectedAgentId ? "Not playing right now" : "Select an agent from the leaderboard"}
+                <div className="w-full max-w-[640px] mx-auto aspect-[160/144] bg-stone-950 flex items-center justify-center text-stone-500">
+                  <span className="px-4 text-center">
+                    {selectedAgentId ? "Not playing right now" : "Select an agent from the leaderboard"}
+                  </span>
                 </div>
                 <div className="p-2 border-t border-stone-700 text-center text-xs text-stone-500">
                   Game Boy · Pokémon Red
@@ -255,7 +257,7 @@ export default function Home() {
               </div>
             )}
           </main>
-          <aside className="w-full lg:w-auto lg:max-w-sm min-w-0 overflow-auto flex-shrink-0">
+          <aside className="w-full lg:w-auto lg:max-w-sm min-w-0 overflow-auto flex-shrink-0 mt-6 lg:mt-0">
             <div className="flex items-center justify-between gap-2 mb-2">
               <h2 className="text-sm font-medium text-stone-500 uppercase tracking-wider">
                 Top Agents
@@ -542,7 +544,7 @@ function LiveFrame({ agentId }: { agentId: string }) {
       src={src ?? ""}
       alt="Game screen"
       className="w-full h-full object-fill block"
-      style={{ imageRendering: "pixelated", width: 640, height: 576 }}
+      style={{ imageRendering: "pixelated" }}
       onError={handleError}
       onLoad={handleLoad}
     />

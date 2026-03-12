@@ -71,7 +71,7 @@ function LiveFrame({ agentId }: { agentId: string }) {
       src={src ?? ""}
       alt="Game screen"
       className="w-full h-full object-fill block"
-      style={{ imageRendering: "pixelated", width: 640, height: 576 }}
+      style={{ imageRendering: "pixelated" }}
       onError={handleError}
       onLoad={handleLoad}
     />
@@ -243,11 +243,11 @@ export default function WatchAgentPage() {
 
       {/* Twitch-like: game left, chat right — centered */}
       <main className="flex-1 flex justify-center min-h-0 px-4 py-4 w-full">
-        <div className="flex gap-4 w-full max-w-[1400px]">
+        <div className="flex flex-col lg:flex-row gap-4 w-full max-w-[1400px]">
           {/* Left: game stream */}
-          <div className="flex-shrink-0">
-            <div className="rounded-xl border-2 border-stone-600 bg-stone-900 overflow-hidden shadow-xl">
-              <div className="block overflow-hidden" style={{ width: 640, height: 576 }}>
+          <div className="w-full lg:w-auto lg:flex-shrink-0">
+            <div className="rounded-xl border-2 border-stone-600 bg-stone-900 overflow-hidden shadow-xl max-w-[640px] mx-auto">
+              <div className="block overflow-hidden w-full aspect-[160/144]">
                 <LiveFrame agentId={agentId} />
               </div>
               <div className="p-2 border-t border-stone-700 text-center text-xs text-stone-500">
@@ -257,7 +257,7 @@ export default function WatchAgentPage() {
           </div>
 
           {/* Right: chat */}
-          <div className="flex-1 min-w-[280px] max-w-[400px] flex flex-col min-h-[600px]">
+          <div className="w-full lg:flex-1 lg:max-w-[400px] flex flex-col min-h-[400px] mt-4 lg:mt-0">
             <ChatPanel streamAgentId={agentId} displayName={name} />
           </div>
         </div>
