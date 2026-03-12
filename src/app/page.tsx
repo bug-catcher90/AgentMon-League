@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { DEFAULT_AGENT_AVATAR } from "@/lib/constants";
 
 type LeaderboardEntry = {
@@ -478,32 +478,45 @@ Full API: open the Docs page on this site.`;
   );
 }
 
+const FRAME_POLL_MS = 80;
+
 function LiveFrame({ agentId }: { agentId: string }) {
   const [src, setSrc] = useState<string | null>(null);
   const [err, setErr] = useState(false);
   const [failCount, setFailCount] = useState(0);
+  const nextRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setErr(false);
     setFailCount(0);
     let cancelled = false;
-    const tick = () => {
+    const requestNext = () => {
       if (cancelled) return;
       setSrc(`/api/observe/emulator/frame?agentId=${encodeURIComponent(agentId)}&t=${Date.now()}`);
     };
-    tick();
-    const interval = setInterval(tick, 40);
+    requestNext();
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      if (nextRef.current) clearTimeout(nextRef.current);
     };
   }, [agentId]);
 
   const handleError = () => {
     setFailCount((c) => c + 1);
     setErr(true);
+    nextRef.current = setTimeout(() => {
+      nextRef.current = null;
+      setSrc(`/api/observe/emulator/frame?agentId=${encodeURIComponent(agentId)}&t=${Date.now()}`);
+    }, 500);
   };
-  const handleLoad = () => setErr(false);
+  const handleLoad = () => {
+    setErr(false);
+    if (nextRef.current) clearTimeout(nextRef.current);
+    nextRef.current = setTimeout(() => {
+      nextRef.current = null;
+      setSrc(`/api/observe/emulator/frame?agentId=${encodeURIComponent(agentId)}&t=${Date.now()}`);
+    }, FRAME_POLL_MS);
+  };
 
   if (err && failCount >= 3) {
     return (
