@@ -283,8 +283,8 @@ function WatchPageContent() {
           </div>
 
           <div className="flex-1 flex min-h-0 w-full min-w-0">
-            <div className="flex gap-4 items-stretch w-full min-w-0 self-start">
-            <div className="flex-1 min-w-0 flex flex-col min-h-0" style={{ aspectRatio: "536/495" }}>
+            <div className="flex flex-col lg:flex-row gap-4 items-stretch w-full min-w-0 self-start">
+            <div className="flex-1 min-w-0 flex flex-col min-h-0 max-w-full" style={{ aspectRatio: "536/495" }}>
               <div className="w-full h-full min-h-0 flex flex-col">
                 <KantoMapHtml
                   regions={citiesAndRoutes.length ? citiesAndRoutes : regions}
@@ -300,7 +300,7 @@ function WatchPageContent() {
               </div>
             </div>
 
-            <aside className="flex-1 min-w-[20rem] min-h-0 flex flex-col border border-stone-700 rounded-lg bg-stone-900/90 overflow-hidden shrink-0 h-full">
+            <aside className="w-full lg:flex-1 lg:min-w-[20rem] min-h-0 flex flex-col border border-stone-700 rounded-lg bg-stone-900/90 overflow-hidden shrink-0 h-full mt-4 lg:mt-0">
               <div className="flex-1 overflow-auto flex flex-col min-h-0">
                 <table className="w-full text-sm table-auto">
                   <thead className="sticky top-0 bg-stone-900 z-[1]">
