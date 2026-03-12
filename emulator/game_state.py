@@ -502,6 +502,19 @@ def compute_step_feedback(
         effects.append("received_pokemon")
         parts.append("You received a Pokémon (e.g. from Oak or trade).")
 
+    # —— Pokémon evolved (same party size, but a species changed in a slot) ——
+    if party_a == party_b and party_a > 0 and not in_battle_a:
+        party_before = state_before.get("party") or []
+        party_after = state_after.get("party") or []
+        if len(party_before) == len(party_after):
+            for i in range(len(party_after)):
+                s_b = (party_before[i] if i < len(party_before) else {}).get("speciesId")
+                s_a = (party_after[i] if i < len(party_after) else {}).get("speciesId")
+                if s_b and s_a and s_b != s_a:
+                    effects.append("pokemon_evolved")
+                    parts.append("A Pokémon evolved!")
+                    break
+
     # —— Badge earned (not already from battle_ended) ——
     if badges_a > badges_b and "earned_badge" not in effects:
         effects.append("earned_badge")

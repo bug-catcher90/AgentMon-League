@@ -3,7 +3,7 @@
 import { DEFAULT_AGENT_AVATAR } from "@/lib/constants";
 import Link from "next/link";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { KantoMapHtml } from "./KantoMapHtml";
 
@@ -72,6 +72,7 @@ function getRegionIdForSession(session: Session, regions: Region[]): string | nu
 }
 
 function WatchPageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const highlightAgentId = searchParams.get("highlight");
   const appliedHighlightRef = useRef(false);
@@ -301,84 +302,115 @@ function WatchPageContent() {
             </div>
 
             <aside className="w-full lg:flex-1 lg:min-w-[20rem] min-h-0 flex flex-col border border-stone-700 rounded-lg bg-stone-900/90 overflow-hidden shrink-0 h-full mt-4 lg:mt-0">
-              <div className="flex-1 overflow-auto flex flex-col min-h-0">
-                <table className="w-full text-sm table-auto">
-                  <thead className="sticky top-0 bg-stone-900 z-[1]">
-                    <tr className="border-b border-stone-700 bg-stone-800/50">
-                      <td colSpan={6} className="px-3 py-2">
-                        <label className="flex items-center gap-2 text-stone-400 text-xs">
-                          <span className="shrink-0">Filter by region:</span>
-                          <select
-                            value={searchMatches != null ? effectiveRegionId ?? "" : selectedRegionId ?? ""}
-                            onChange={(e) => {
-                              setSearchApplied(null);
-                              setSelectedRegionId(e.target.value || null);
-                            }}
-                            className="flex-1 min-w-0 rounded px-2 py-1.5 bg-stone-700 border border-stone-600 text-stone-200 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
-                          >
-                            <option value="">All ({sessions.length})</option>
-                            {citiesAndRoutes.map((r) => {
-                              const count = (agentsByRegion[r.id] ?? []).length;
-                              return (
-                                <option key={r.id} value={r.id}>
-                                  {r.name} ({count})
-                                </option>
-                              );
-                            })}
-                          </select>
-                        </label>
-                      </td>
-                    </tr>
-                    <tr className="border-b border-stone-600 text-stone-500 text-left">
-                      <th className="px-3 py-2 font-medium">Agent</th>
-                      <th className="px-3 py-2 font-medium text-center">Playtime</th>
-                      <th className="px-3 py-2 font-medium text-center">Badges</th>
-                      <th className="px-3 py-2 font-medium text-center">Pokedex</th>
-                      <th className="px-3 py-2 font-medium">Location</th>
-                      <th className="px-3 py-2 font-medium w-20 text-right">Watch</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredSessions.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="px-3 py-6 text-center text-stone-500">
-                          {searchApplied
-                            ? "No agent matches your search."
-                            : effectiveRegionId
-                              ? `No agents in ${citiesAndRoutes.find((r) => r.id === effectiveRegionId)?.name ?? effectiveRegionId}`
-                              : "No sessions"}
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredSessions.map((s) => (
-                        <tr key={s.agentId} className="border-b border-stone-700/80 last:border-0 text-stone-300 hover:bg-stone-800/50">
-                          <td className="px-3 py-2">
-                            <div className="flex items-center gap-2">
-                              {s.avatarUrl?.startsWith("http") ? (
-                                <img src={s.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
-                              ) : (
-                                <Image src={s.avatarUrl || DEFAULT_AGENT_AVATAR} alt="" width={32} height={32} className="rounded-full object-cover flex-shrink-0" />
-                              )}
-                              <span className="truncate font-medium">{s.displayName || s.agentId.slice(0, 8)}</span>
+              <div className="flex-1 overflow-auto flex flex-col min-h-0 p-2 sm:p-0">
+                {/* Region filter */}
+                <div className="px-2 sm:px-3 py-2 border-b border-stone-700 bg-stone-800/50">
+                  <label className="flex items-center gap-2 text-stone-400 text-xs">
+                    <span className="shrink-0">Filter by region:</span>
+                    <select
+                      value={searchMatches != null ? effectiveRegionId ?? "" : selectedRegionId ?? ""}
+                      onChange={(e) => {
+                        setSearchApplied(null);
+                        setSelectedRegionId(e.target.value || null);
+                      }}
+                      className="flex-1 min-w-0 rounded px-2 py-1.5 bg-stone-700 border border-stone-600 text-stone-200 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    >
+                      <option value="">All ({sessions.length})</option>
+                      {citiesAndRoutes.map((r) => {
+                        const count = (agentsByRegion[r.id] ?? []).length;
+                        return (
+                          <option key={r.id} value={r.id}>
+                            {r.name} ({count})
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </label>
+                </div>
+
+                {filteredSessions.length === 0 ? (
+                  <div className="px-3 py-6 text-center text-stone-500 text-sm">
+                    {searchApplied
+                      ? "No agent matches your search."
+                      : effectiveRegionId
+                        ? `No agents in ${citiesAndRoutes.find((r) => r.id === effectiveRegionId)?.name ?? effectiveRegionId}`
+                        : "No sessions"}
+                  </div>
+                ) : (
+                  <>
+                    {/* Mobile: cards — tap to open session */}
+                    <div className="lg:hidden space-y-2 py-2">
+                      {filteredSessions.map((s) => (
+                        <button
+                          key={s.agentId}
+                          type="button"
+                          onClick={() => router.push(`/observe/watch/${s.agentId}`)}
+                          className="w-full text-left rounded-lg border border-stone-700 bg-stone-800/40 p-3 hover:bg-stone-700/50 active:bg-stone-700 transition"
+                        >
+                          <div className="flex items-center gap-3">
+                            {s.avatarUrl?.startsWith("http") ? (
+                              <img src={s.avatarUrl} alt="" className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+                            ) : (
+                              <Image src={s.avatarUrl || DEFAULT_AGENT_AVATAR} alt="" width={40} height={40} className="rounded-full object-cover flex-shrink-0" />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-stone-200 truncate">{s.displayName || s.agentId.slice(0, 8)}</p>
+                              <p className="text-xs text-stone-500">
+                                {formatPlaytime(s.sessionTimeSeconds ?? 0)} · {s.badges ?? 0} badges · {s.pokedexOwned ?? 0}/{s.pokedexSeen ?? 0} Pokedex
+                              </p>
+                              {s.mapName ? <p className="text-xs text-stone-500 truncate mt-0.5" title={s.mapName}>{s.mapName}</p> : null}
                             </div>
-                          </td>
-                          <td className="px-3 py-2 text-center">{formatPlaytime(s.sessionTimeSeconds ?? 0)}</td>
-                          <td className="px-3 py-2 text-center">{s.badges ?? 0}</td>
-                          <td className="px-3 py-2 text-center">{s.pokedexOwned ?? 0} / {s.pokedexSeen ?? 0}</td>
-                          <td className="px-3 py-2 min-w-[80px]" title={s.mapName ?? ""}>{s.mapName ?? "—"}</td>
-                          <td className="px-3 py-2 text-right">
-                            <Link
-                              href={`/observe/watch/${s.agentId}`}
-                              className="inline-block px-3 py-1.5 rounded bg-amber-500 text-stone-900 text-xs font-medium hover:bg-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
-                            >
-                              Watch
-                            </Link>
-                          </td>
+                            <span className="text-amber-400 text-sm font-medium shrink-0">Watch →</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Desktop: table — click row to open session */}
+                    <table className="hidden lg:table w-full text-sm table-auto">
+                      <thead className="sticky top-0 bg-stone-900 z-[1]">
+                        <tr className="border-b border-stone-600 text-stone-500 text-left">
+                          <th className="px-3 py-2 font-medium">Agent</th>
+                          <th className="px-3 py-2 font-medium text-center">Playtime</th>
+                          <th className="px-3 py-2 font-medium text-center">Badges</th>
+                          <th className="px-3 py-2 font-medium text-center">Pokedex</th>
+                          <th className="px-3 py-2 font-medium">Location</th>
+                          <th className="px-3 py-2 font-medium w-20 text-right">Watch</th>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      </thead>
+                      <tbody>
+                        {filteredSessions.map((s) => (
+                          <tr
+                            key={s.agentId}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => router.push(`/observe/watch/${s.agentId}`)}
+                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); router.push(`/observe/watch/${s.agentId}`); } }}
+                            className="border-b border-stone-700/80 last:border-0 text-stone-300 hover:bg-stone-800/50 cursor-pointer"
+                          >
+                            <td className="px-3 py-2">
+                              <div className="flex items-center gap-2">
+                                {s.avatarUrl?.startsWith("http") ? (
+                                  <img src={s.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                                ) : (
+                                  <Image src={s.avatarUrl || DEFAULT_AGENT_AVATAR} alt="" width={32} height={32} className="rounded-full object-cover flex-shrink-0" />
+                                )}
+                                <span className="truncate font-medium">{s.displayName || s.agentId.slice(0, 8)}</span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 text-center">{formatPlaytime(s.sessionTimeSeconds ?? 0)}</td>
+                            <td className="px-3 py-2 text-center">{s.badges ?? 0}</td>
+                            <td className="px-3 py-2 text-center">{s.pokedexOwned ?? 0} / {s.pokedexSeen ?? 0}</td>
+                            <td className="px-3 py-2 min-w-[80px]" title={s.mapName ?? ""}>{s.mapName ?? "—"}</td>
+                            <td className="px-3 py-2 text-right">
+                              <span className="text-amber-400 text-xs font-medium">Watch →</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
+                )}
               </div>
             </aside>
             </div>
