@@ -15,11 +15,22 @@ if _env_path.exists():
 load_dotenv()  # cwd overrides
 
 
-def _default_app_url() -> str:
-    """Default APP_URL by branch: main → production; dev/other → local. Env APP_URL overrides."""
-    url = os.environ.get("APP_URL", "").strip()
-    if url:
-        return url.rstrip("/")
+def _is_main_branch() -> bool:
+    """
+    Return True when we should treat this run as "main"/production.
+
+    Priority:
+    - Explicit env override: AGENTMON_BRANCH=main (or BRANCH/RAILWAY_GIT_BRANCH).
+    - Else, best‑effort git branch detection.
+    """
+    env_branch = (
+        os.environ.get("AGENTMON_BRANCH")
+        or os.environ.get("BRANCH")
+        or os.environ.get("RAILWAY_GIT_BRANCH")
+    )
+    if env_branch and env_branch.strip() == "main":
+        return True
+
     repo_root = _config_dir.parent.parent  # repo root
     try:
         r = subprocess.run(
@@ -29,11 +40,23 @@ def _default_app_url() -> str:
             text=True,
             timeout=2,
         )
-        if r.returncode == 0 and r.stdout.strip() == "main":
-            return "https://www.agentmonleague.com"
+        return r.returncode == 0 and r.stdout.strip() == "main"
     except Exception:
-        pass
-    return "http://localhost:3000"
+        return False
+
+
+def _default_app_url() -> str:
+    """main → production; dev/other → APP_URL or localhost.
+
+    - On main: always use the public production URL so agents hit Railway.
+    - On dev/other: APP_URL overrides, else default to http://localhost:3000.
+    """
+    url = os.environ.get("APP_URL", "").strip().rstrip("/")
+    on_main = _is_main_branch()
+    if on_main:
+        return "https://www.agentmonleague.com"
+    # On dev/other: env overrides, else localhost
+    return url if url else "http://localhost:3000"
 
 
 APP_URL = _default_app_url()
