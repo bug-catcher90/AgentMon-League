@@ -215,12 +215,11 @@ export default function Home() {
         )}
       </section>
 
-      {/* Watch + Leaderboard — no header, centered game + Top 10 */}
+      {/* Watch + Leaderboard — centered like other sections; fixed widths on wide screens */}
       <section className="w-full border-t border-stone-800 py-10">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6">
-          <div className="flex justify-center">
-            <div className="flex flex-col lg:flex-row gap-6 items-start w-full lg:w-auto max-w-full">
-          <main className="flex-shrink-0 w-full">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex justify-center">
+          <div className="flex flex-col lg:flex-row gap-6 items-start w-full max-w-full lg:max-w-[1040px]">
+          <main className="flex-shrink-0 w-full lg:w-[640px]">
             {selectedAgentId && sessionSet.has(selectedAgentId) ? (
               <div className="rounded-xl border-2 border-stone-600 bg-stone-900 overflow-hidden">
                 <div className="p-3 border-b border-stone-700 flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -259,7 +258,7 @@ export default function Home() {
               </div>
             )}
           </main>
-          <aside className="w-full lg:w-auto lg:max-w-sm min-w-0 overflow-auto flex-shrink-0 mt-6 lg:mt-0">
+          <aside className="w-full lg:w-[360px] min-w-0 overflow-auto flex-shrink-0 mt-6 lg:mt-0">
             <div className="flex items-center justify-between gap-2 mb-2">
               <h2 className="text-sm font-medium text-stone-500 uppercase tracking-wider">
                 Top Agents
@@ -323,7 +322,6 @@ export default function Home() {
             </p>
           </aside>
           </div>
-        </div>
         </div>
       </section>
 
