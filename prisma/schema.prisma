@@ -40,6 +40,7 @@ model Agent {
   seasonStats        SeasonAgentStat[]
   sessionSummaries   SessionSummary[]
   championSeasons    Season[]           @relation("SeasonChampion")
+  liveActivityEvents LiveActivityEvent[]
 }
 
 // Published RL model (checkpoint) for others to download and use. Blob stored on filesystem or object storage.
@@ -314,6 +315,21 @@ model SessionSummary {
 
   @@index([agentId, endedAt])
   @@index([endedAt])
+}
+
+// Global live activity feed for virality: recent notable events across all live sessions.
+model LiveActivityEvent {
+  id        String   @id @default(cuid())
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  kind      String   // e.g. wild_encounter, trainer_battle_started, badge_earned, entered_location
+  message   String   // short human-readable description shown in the feed
+  location  String?  // mapName or area (e.g. "Pallet Town", "Route 1")
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 // Live chat per stream (agent being watched). Anyone can post with a display name.
