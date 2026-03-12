@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
 
 const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.agentmonleague.com";
 
@@ -49,9 +50,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased min-h-screen bg-stone-950 text-stone-100">
+      <body className="antialiased min-h-screen bg-stone-950 text-stone-100 flex flex-col">
         <Navbar />
-        {children}
+        <main className="flex-1">{children}</main>
+        <Footer />
       </body>
     </html>
   );

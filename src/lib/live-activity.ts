@@ -17,6 +17,7 @@ type LiveActivityKind =
   | "trainer_battle_started"
   | "battle_over"
   | "pokemon_caught"
+  | "pokemon_evolved"
   | "trainer_battle_won"
   | "badge_earned"
   | "location_entered"
@@ -60,6 +61,15 @@ function deriveEventsFromStep(payload: StepPayload): LiveActivityDraft[] {
     events.push({
       kind: "pokemon_caught",
       message: "Caught a Pokémon",
+      location,
+    });
+  }
+
+  // Pokémon evolved
+  if (tags.has("pokemon_evolved")) {
+    events.push({
+      kind: "pokemon_evolved",
+      message: "A Pokémon evolved",
       location,
     });
   }
