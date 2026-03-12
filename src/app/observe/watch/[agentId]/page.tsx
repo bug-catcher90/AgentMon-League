@@ -241,11 +241,11 @@ export default function WatchAgentPage() {
         </div>
       </header>
 
-      {/* Game + chat: centered block, same max-width as homepage watch section */}
-      <main className="flex-1 flex justify-center min-h-0 px-4 py-4 w-full">
-        <div className="flex flex-col lg:flex-row gap-6 w-full max-w-[1040px] items-start">
+      {/* Game + chat: main fills viewport; inner block fills main so chat height is constant */}
+      <main className="flex-1 flex flex-col min-h-0 px-4 py-4 w-full">
+        <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-6 w-full max-w-[1040px] items-stretch mx-auto">
           {/* Left: game stream */}
-          <div className="w-full lg:w-[640px] flex-shrink-0">
+          <div className="w-full lg:w-[640px] flex-shrink-0 flex flex-col">
             <div className="rounded-xl border-2 border-stone-600 bg-stone-900 overflow-hidden shadow-xl">
               <div className="block overflow-hidden w-full aspect-[160/144]">
                 <LiveFrame agentId={agentId} />
@@ -256,8 +256,8 @@ export default function WatchAgentPage() {
             </div>
           </div>
 
-          {/* Right: chat */}
-          <div className="w-full lg:w-[360px] flex-shrink-0 flex flex-col min-h-[400px] mt-4 lg:mt-0">
+          {/* Right: chat — same height as main (constant); messages scroll inside */}
+          <div className="w-full lg:w-[360px] flex-shrink-0 flex flex-col min-h-[400px] lg:min-h-0 mt-4 lg:mt-0 min-h-0">
             <ChatPanel streamAgentId={agentId} displayName={name} />
           </div>
         </div>
