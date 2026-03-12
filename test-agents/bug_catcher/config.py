@@ -20,11 +20,7 @@ _config_dir = Path(__file__).resolve().parent
 _test_agents_dir = _config_dir.parent
 
 
-def _default_app_url() -> str:
-    """Default APP_URL by branch: main → production; dev/other → local. Env APP_URL overrides."""
-    url = os.environ.get("APP_URL", "").strip()
-    if url:
-        return url.rstrip("/")
+def _is_main_branch() -> bool:
     repo_root = _config_dir.parent.parent  # repo root
     try:
         r = subprocess.run(
@@ -34,11 +30,22 @@ def _default_app_url() -> str:
             text=True,
             timeout=2,
         )
-        if r.returncode == 0 and r.stdout.strip() == "main":
-            return "https://www.agentmonleague.com"
+        return r.returncode == 0 and r.stdout.strip() == "main"
     except Exception:
-        pass
-    return "http://localhost:3000"
+        return False
+
+
+def _default_app_url() -> str:
+    """main → production; dev/other → local. Env APP_URL overrides unless on main with localhost (then use production)."""
+    url = os.environ.get("APP_URL", "").strip().rstrip("/")
+    on_main = _is_main_branch()
+    if on_main:
+        # On main: use production unless user set a non-localhost URL
+        if url and "localhost" not in url and "127.0.0.1" not in url:
+            return url
+        return "https://www.agentmonleague.com"
+    # On dev/other: env overrides, else localhost
+    return url if url else "http://localhost:3000"
 
 
 APP_URL = _default_app_url()

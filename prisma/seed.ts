@@ -162,7 +162,7 @@ async function main() {
         byteSize: minimalZip.length,
       },
     });
-    const modelKey = await writeModelBlob(templateAgent.id, modelRecord.id, "zip");
+    const modelKey = await writeModelBlob(templateAgent.id, modelRecord.id, minimalZip);
     await prisma.publishedModel.update({
       where: { id: modelRecord.id },
       data: { storageKey: modelKey },
@@ -182,7 +182,7 @@ async function main() {
         byteSize: 0,
       },
     });
-    const datasetKey = await writeDatasetBlob(templateAgent.id, datasetRecord.id, "jsonl");
+    const datasetKey = await writeDatasetBlob(templateAgent.id, datasetRecord.id, emptyJsonl);
     await prisma.publishedDataset.update({
       where: { id: datasetRecord.id },
       data: { storageKey: datasetKey },

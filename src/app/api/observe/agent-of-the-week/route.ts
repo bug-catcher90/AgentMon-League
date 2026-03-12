@@ -59,8 +59,12 @@ export async function GET() {
   const top = scored[0]!;
   const agent = await prisma.agent.findUnique({
     where: { id: top.agentId },
-    select: { id: true, displayName: true, avatarUrl: true },
-    include: { profile: { select: { name: true } } },
+    select: {
+      id: true,
+      displayName: true,
+      avatarUrl: true,
+      profile: { select: { name: true } },
+    },
   });
 
   if (!agent) return NextResponse.json({ agent: null });

@@ -7,6 +7,23 @@ import requests
 from rl_agent.config import APP_URL, AGENT_ID, AGENT_KEY, STARTER
 
 
+def _error_message(r: requests.Response, prefix: str) -> str:
+    """Build a short error message from response; avoid dumping HTML."""
+    try:
+        data = r.json()
+        err = data.get("error") or data.get("detail") or data.get("message")
+        if err:
+            return f"{prefix}: {r.status_code} {err}"
+    except Exception:
+        pass
+    if r.text.strip().lower().startswith("<!DOCTYPE") or "<html" in r.text[:200].lower():
+        return (
+            f"{prefix}: {r.status_code}. Server returned HTML (check Railway app and emulator logs; "
+            "ensure EMULATOR_URL is set and the emulator service has the ROM)."
+        )
+    return f"{prefix}: {r.status_code} {r.text[:200]}"
+
+
 def register():
     try:
         r = requests.post(f"{APP_URL}/api/auth/local/register", timeout=10)
@@ -42,7 +59,8 @@ def start_session(
         timeout=10,
     )
     if r.status_code != 200:
-        raise RuntimeError(f"Start failed: {r.status_code} {r.text}")
+        msg = _error_message(r, "Start failed")
+        raise RuntimeError(msg)
     return r.json()
 
 

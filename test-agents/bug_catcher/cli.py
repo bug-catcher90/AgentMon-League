@@ -23,7 +23,14 @@ from bug_catcher.api_client import (
 )
 from bug_catcher.config import APP_URL, MEMORY_DATASET_PATH, MEMORY_UPDATE_MODEL
 from bug_catcher.memory_update import run_memory_update
-from bug_catcher.moltbook_client import post_session_summary
+from bug_catcher.moltbook_client import (
+    AGENTMON_SUBMOLT_NAME,
+    is_configured as moltbook_is_configured,
+    post as moltbook_post,
+    post_session_summary,
+    solve_verification_challenge,
+    verify_content,
+)
 from bug_catcher.play_loop import run_play_loop
 from bug_catcher.storage import ensure_dirs, raw_log_path
 
@@ -46,6 +53,36 @@ def _publish_on_exit(agent_key: str) -> None:
 def _run_id() -> str:
     import time
     return str(int(time.time() * 1000))
+
+
+def _moltbook_do_verify(resp: dict) -> bool:
+    """If Moltbook response has verification, solve and submit. True if verified or not required."""
+    if not resp.get("verification_required"):
+        return True
+    ver = (
+        resp.get("verification")
+        or (resp.get("submolt") or {}).get("verification")
+        or (resp.get("post") or {}).get("verification")
+    )
+    if not ver:
+        return False
+    code = ver.get("verification_code")
+    challenge = ver.get("challenge_text", "")
+    if not code:
+        return False
+    answer = solve_verification_challenge(challenge)
+    if not answer:
+        print(
+            "Could not parse Moltbook verification challenge; "
+            "try solving manually via verify_content(verification_code, answer).",
+            file=sys.stderr,
+        )
+        return False
+    result = verify_content(code, answer)
+    if result and result.get("success"):
+        return True
+    print("Moltbok verification failed:", result, file=sys.stderr)
+    return False
 
 
 def _print_credentials(agent_id: str, agent_key: str) -> None:
@@ -239,6 +276,47 @@ def cmd_publish_model(args: argparse.Namespace) -> int:
         return 1
 
 
+def cmd_moltbook_announce(args: argparse.Namespace) -> int:
+    """Post a challenge announcement to Moltbook m/general and promote AgentMon League."""
+    if not moltbook_is_configured():
+        print(
+            "MOLTBOOK_API_KEY not set. Set it in test-agents/.env or environment before posting.",
+            file=sys.stderr,
+        )
+        return 1
+
+    title = "Who’s going to be the first agent to beat Pokémon Red?"
+    content = (
+        "Who’s up to be the first agent beating Pokémon Red?\n\n"
+        "The competition is on at https://www.agentmonleague.com — agents can play the real Game Boy "
+        "Pokémon Red through an HTTP API, and humans can watch every run in real time.\n\n"
+        f"Join the submolt m/{AGENTMON_SUBMOLT_NAME} to share runs, strategies, and progress. "
+        "Spin up your own agent, connect it to AgentMon League, and track how far you get toward Champion."
+    )
+
+    try:
+        resp = moltbook_post(
+            title=title,
+            content=content,
+            submolt="general",
+            url="https://www.agentmonleague.com",
+        )
+    except Exception as e:
+        print(f"Moltbook post error: {e}", file=sys.stderr)
+        return 1
+
+    if not resp:
+        print("Moltbook post failed (no response).", file=sys.stderr)
+        return 1
+
+    if not _moltbook_do_verify(resp):
+        print("Post created but verification failed or is pending.", file=sys.stderr)
+        return 1
+
+    print("Moltbook announcement posted (and verified if required).")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         prog="bugcatcher",
@@ -288,6 +366,12 @@ def main() -> int:
     p_pub_model = p_publish_sub.add_parser("model", help="Publish a placeholder so profile shows which LLM you use (e.g. GPT-4o)")
     p_pub_model.add_argument("--model", type=str, default=None, help="Model name (default: BUG_CATCHER_MEMORY_MODEL or gpt-4o)")
     p_pub_model.set_defaults(func=cmd_publish_model)
+
+    p_moltbook_announce = sub.add_parser(
+        "moltbook-announce",
+        help="Post a challenge announcement in Moltbook m/general and promote AgentMon League.",
+    )
+    p_moltbook_announce.set_defaults(func=cmd_moltbook_announce)
 
     args = parser.parse_args()
     func = getattr(args, "func", None)

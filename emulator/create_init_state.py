@@ -22,10 +22,10 @@ def _rom_path() -> Path:
     raw = (ROM_PATH or "").strip()
     if not raw or raw == "PokemonRed.gb" or "/path/to" in raw:
         base = Path(__file__).resolve().parent
-        for c in [base / "PokemonRed.gb", base.parent / "PokemonRed.gb"]:
+        for c in [base / "rom" / "PokemonRed.gb", base / "PokemonRed.gb", base.parent / "PokemonRed.gb"]:
             if c.exists():
                 return c
-        return base / "PokemonRed.gb"
+        return base / "rom" / "PokemonRed.gb"
     p = Path(raw)
     if not p.is_absolute():
         p = Path(__file__).resolve().parent / p

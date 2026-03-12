@@ -16,9 +16,7 @@ This service runs the real **Pokémon Red** Game Boy ROM using [PyBoy](https://g
    pip install -r requirements.txt
    ```
 
-2. Place your Pokémon Red ROM file (e.g. `PokemonRed.gb`) in either:
-   - the **project root** (parent of `emulator/`), or  
-   - the **emulator/** folder.  
+2. Place your Pokémon Red ROM file (e.g. `PokemonRed.gb`) in **emulator/rom/** (recommended), or in **emulator/** or the **project root**.
    Or set its full path when starting the server:
 
    ```bash
@@ -28,12 +26,11 @@ This service runs the real **Pokémon Red** Game Boy ROM using [PyBoy](https://g
 
 3. **(Recommended)** Use an init state so the game skips the intro. When an agent starts a new session, the emulator injects the **player name** and **rival name**, and when using the “after Oak’s parcel” state it applies the chosen **starter** (Bulbasaur, Charmander, or Squirtle). The game then starts next to Professor Oak with Pokédex and starter ready.
 
-   **Option A — Start after Oak’s parcel** (recommended; like PokemonRedExperiments): the game starts in Oak’s lab with Pokédex obtained and one starter in the party. Place `has_pokedex.state` in the `emulator/` directory; the server will use it automatically (no env var needed). Or set `EMULATOR_INIT_STATE` to its path.
+   **Option A — Start after Oak’s parcel** (recommended; like PokemonRedExperiments): the game starts in Oak’s lab with Pokédex obtained and one starter in the party. Place `has_pokedex.state` in **emulator/rom/** (or `emulator/`); the server will use it automatically (no env var needed). Or set `EMULATOR_INIT_STATE` to its path.
 
    ```bash
-   cd emulator
-   curl -sL -o has_pokedex.state "https://raw.githubusercontent.com/PWhiddy/PokemonRedExperiments/master/has_pokedex.state"
-   # No export needed: server auto-uses has_pokedex.state when present in this directory
+   curl -sL -o emulator/rom/has_pokedex.state "https://raw.githubusercontent.com/PWhiddy/PokemonRedExperiments/master/has_pokedex.state"
+   # No export needed: server auto-uses has_pokedex.state when present in emulator/rom/ or emulator/
    ```
 
    When starting a session, the client can send `starter: "bulbasaur" | "charmander" | "squirtle"`. If the client does not send a starter, the emulator uses `EMULATOR_DEFAULT_STARTER` (default `charmander`) so the session always has a valid party.
@@ -58,7 +55,7 @@ cd emulator
 uvicorn server:app --host 0.0.0.0 --port 8765
 ```
 
-To start **after Oak's parcel**, place `has_pokedex.state` in `emulator/` (see Setup step 3), then run the server. No env var is required; the server auto-uses `has_pokedex.state` when present. To use a different init state or path, set `EMULATOR_INIT_STATE` before starting.
+To start **after Oak's parcel**, place `has_pokedex.state` in **emulator/rom/** (or `emulator/`; see Setup step 3), then run the server. No env var is required; the server auto-uses `has_pokedex.state` when present. To use a different init state or path, set `EMULATOR_INIT_STATE` before starting.
 
 **Playback speed:** When starting a session, the agent can pass `speed`: `0` or `"unlimited"` = run as fast as possible (no frame limit), `1` = real-time, `2` = 2×, `4` = 4×. Default is **unlimited** so the game doesn’t feel laggy when the emulator is ticking. Any perceived slowness is usually from the agent sending one action at a time with long think time between; use `POST /session/{id}/actions` with a sequence (e.g. many `"a"` to skip dialogue) for fast playback.
 
@@ -71,9 +68,13 @@ To start **after Oak's parcel**, place `has_pokedex.state` in `emulator/` (see S
 uvicorn server:app --host 0.0.0.0 --port 8765
 ```
 
-**Important:** Set `EMULATOR_ROM_PATH` only to the real path of your ROM file. If unset, the server looks for `PokemonRed.gb` in the project root and in `emulator/`.
+**Important:** Set `EMULATOR_ROM_PATH` only to the real path of your ROM file. If unset, the server looks for `PokemonRed.gb` in `emulator/rom/`, `emulator/`, and the project root.
 
 The Next.js app expects the emulator at `http://127.0.0.1:8765` by default. Override with `EMULATOR_URL` in `.env` (e.g. `EMULATOR_URL=http://localhost:8765`).
+
+## Production (Railway) — ROM image
+
+To deploy the emulator with the ROM included (keeps the ROM out of the repo): place `PokemonRed.gb` in **emulator/rom/**, build with `emulator/Dockerfile.rom`, and push to GHCR or Docker Hub. See [docs/RAILWAY.md](../docs/RAILWAY.md#rom-image-option-a--recommended) for full steps.
 
 ## Name bypass
 

@@ -18,6 +18,22 @@ export type StarterChoice = (typeof VALID_STARTERS)[number];
  *   - { loadSessionId: string } → load a previously saved game (optional label/speed ignored for payload).
  */
 export async function POST(req: Request) {
+  try {
+    if (!EMULATOR_URL || EMULATOR_URL.includes("127.0.0.1")) {
+      return NextResponse.json(
+        { error: "EMULATOR_URL not set or still default. Set it to the Railway emulator service URL in app Variables." },
+        { status: 503 }
+      );
+    }
+    return await handleStart(req);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Internal server error";
+    console.error("[emulator/start]", message, err);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+async function handleStart(req: Request) {
   const agent = await getAgentFromRequest(req.headers);
   if (!agent) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -108,11 +124,14 @@ export async function POST(req: Request) {
         ...(initialStateBase64 && { initial_state_base64: initialStateBase64 }),
       }),
     });
-    const data = await res.json().catch(() => ({}));
+    const data = (await res.json().catch(() => ({}))) as { detail?: string; message?: string };
     if (!res.ok) {
+      const message = data.detail ?? data.message ?? "Emulator service error";
+      // Forward 4xx as-is; treat 5xx from emulator as 502 so client sees "bad gateway" and knows to check emulator
+      const status = res.status >= 500 ? 502 : res.status === 404 ? 502 : res.status;
       return NextResponse.json(
-        { error: data.detail ?? "Emulator service error" },
-        { status: res.status === 404 ? 502 : res.status }
+        { error: message, emulatorStatus: res.status },
+        { status }
       );
     }
     const now = new Date().toISOString();
@@ -121,7 +140,7 @@ export async function POST(req: Request) {
     }).catch(() => {});
     // Always return the agent id used for the session so clients use the correct id for frame/state
     return NextResponse.json({ ...data, agentId: agent.id });
-  } catch (e) {
+  } catch (err) {
     return NextResponse.json(
       { error: "Emulator service unreachable. Is it running?" },
       { status: 502 }

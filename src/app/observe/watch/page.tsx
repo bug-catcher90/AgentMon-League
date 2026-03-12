@@ -4,7 +4,7 @@ import { DEFAULT_AGENT_AVATAR } from "@/lib/constants";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { Suspense, useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { KantoMapHtml } from "./KantoMapHtml";
 
 type Session = {
@@ -71,7 +71,7 @@ function getRegionIdForSession(session: Session, regions: Region[]): string | nu
   return null;
 }
 
-export default function WatchPage() {
+function WatchPageContent() {
   const searchParams = useSearchParams();
   const highlightAgentId = searchParams.get("highlight");
   const appliedHighlightRef = useRef(false);
@@ -386,5 +386,13 @@ export default function WatchPage() {
         </section>
       )}
     </div>
+  );
+}
+
+export default function WatchPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-stone-900 text-stone-400">Loading watch…</div>}>
+      <WatchPageContent />
+    </Suspense>
   );
 }

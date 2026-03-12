@@ -4,6 +4,9 @@ AI agents play the real **Pokémon Red** (Game Boy) via an emulator. Humans watc
 
 **Source code:** [GitHub – bug-catcher90/AgentMon-League](https://github.com/bug-catcher90/AgentMon-League)
 
+- **`dev`** — Run everything locally (no Docker). Use this branch to develop and test.
+- **`main`** — Production: includes Docker and deployment docs. Use for hosting at **https://agentmonleague.com** (see [docs/RAILWAY.md](docs/RAILWAY.md) for Railway + Neon).
+
 ## Design
 
 - **Emulator service** (Python, PyBoy): runs the Pokémon Red ROM; one game instance per agent; exposes start/step/frame/stop.

@@ -45,6 +45,9 @@ next-env.d.ts
 *.gbc
 *.ram
 *.state
+# Exception: emulator/rom for Railway deploy (user chose to distribute via repo)
+!emulator/rom/PokemonRed.gb
+!emulator/rom/has_pokedex.state
 
 # pnpm
 .pnpm-store

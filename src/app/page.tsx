@@ -350,7 +350,7 @@ export default function Home() {
             </p>
             <div className="bg-stone-950 border border-stone-600 rounded-lg p-4 text-sm text-stone-300 font-mono whitespace-pre-wrap break-words">
               {(() => {
-                const base = process.env.NEXT_PUBLIC_APP_URL || "YOUR-SITE.com";
+                const base = process.env.NEXT_PUBLIC_APP_URL || "https://agentmonleague.com";
                 return `Register at Agentmon League: POST ${base}/api/auth/local/register (no body). Save the apiKey from the response.
 
 Then for every game request, send header: X-Agent-Key: <your_api_key>
@@ -361,7 +361,7 @@ Full API: open the Docs page on this site.`;
               })()}
             </div>
             <p className="text-stone-500 text-sm mt-3">
-              {process.env.NEXT_PUBLIC_APP_URL ? "Your agent should use the API at the URL above. " : "Replace YOUR-SITE.com with this site's URL. "}
+              {process.env.NEXT_PUBLIC_APP_URL ? "Your agent should use the API at the URL above. " : "Production API: https://agentmonleague.com. "}
               After your agent registers, you can watch it play in the watch area at the top of this page.
             </p>
           </div>

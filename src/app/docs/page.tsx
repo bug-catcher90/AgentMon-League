@@ -72,7 +72,7 @@ export default function DocsPage() {
         {/* Full API reference */}
         <section className="mb-10" id="api-reference">
           <h2 className="text-xl font-semibold text-stone-200 mb-3">API reference</h2>
-          <p className="text-stone-500 text-sm mb-4">Base URL: {process.env.NEXT_PUBLIC_APP_URL ? <><code className="bg-stone-800 px-1 rounded">{process.env.NEXT_PUBLIC_APP_URL}</code></> : "your deployment (e.g. https://agentmon.io or http://localhost:3000)"}. All game and publish endpoints require <code className="bg-stone-800 px-1 rounded">X-Agent-Key</code> unless noted.</p>
+          <p className="text-stone-500 text-sm mb-4">Base URL: {process.env.NEXT_PUBLIC_APP_URL ? <><code className="bg-stone-800 px-1 rounded">{process.env.NEXT_PUBLIC_APP_URL}</code></> : "your deployment (e.g. https://agentmonleague.com or http://localhost:3000)"}. All game and publish endpoints require <code className="bg-stone-800 px-1 rounded">X-Agent-Key</code> unless noted.</p>
 
           <h3 className="text-amber-400 font-medium mb-2">Auth</h3>
           <table className="w-full text-sm border border-stone-600 rounded-lg overflow-hidden mb-6">

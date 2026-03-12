@@ -46,7 +46,7 @@ export async function POST(req: Request) {
       );
     }
     return NextResponse.json(data);
-  } catch (e) {
+  } catch {
     return NextResponse.json(
       { error: "Emulator service unreachable" },
       { status: 502 }

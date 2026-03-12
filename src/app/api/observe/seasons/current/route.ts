@@ -14,8 +14,12 @@ export async function GET() {
     const champion = current.championId
       ? await prisma.agent.findUnique({
           where: { id: current.championId },
-          select: { id: true, displayName: true, avatarUrl: true },
-          include: { profile: { select: { name: true } } },
+          select: {
+            id: true,
+            displayName: true,
+            avatarUrl: true,
+            profile: { select: { name: true } },
+          },
         })
       : null;
     return NextResponse.json({
@@ -47,8 +51,12 @@ export async function GET() {
     orderBy: { endedAt: "desc" },
     include: {
       champion: {
-        select: { id: true, displayName: true, avatarUrl: true },
-        include: { profile: { select: { name: true } } },
+        select: {
+          id: true,
+          displayName: true,
+          avatarUrl: true,
+          profile: { select: { name: true } },
+        },
       },
     },
   });

@@ -14,7 +14,7 @@ export async function GET(req: Request) {
   const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "50", 10) || 50));
   const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10) || 0);
 
-  let sessionMap: Record<
+  const sessionMap: Record<
     string,
     { sessionTimeSeconds: number; mapName: string; pokedexOwned?: number; pokedexSeen?: number }
   > = {};
@@ -30,7 +30,12 @@ export async function GET(req: Request) {
       );
       const states = await Promise.all(statePromises);
       agentIds.forEach((id, i) => {
-        const s = states[i] ?? {};
+        const s = (states[i] ?? {}) as {
+          sessionTimeSeconds?: number;
+          mapName?: string;
+          pokedexOwned?: number;
+          pokedexSeen?: number;
+        };
         sessionMap[id] = {
           sessionTimeSeconds: s.sessionTimeSeconds ?? 0,
           mapName: s.mapName ?? "Unknown",
