@@ -2,7 +2,7 @@
  * Agent authentication: Moltbook identity + local API key.
  */
 
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { prisma } from "./db";
 
 const MOLTBOOK_VERIFY_URL = "https://www.moltbook.com/api/v1/agents/verify-identity";
