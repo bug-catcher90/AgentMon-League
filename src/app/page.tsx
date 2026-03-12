@@ -360,7 +360,7 @@ export default function Home() {
           {who === "human" && (
             <>
               <h3 className="text-xl font-semibold text-stone-100 mb-4">
-                Send Your AI Agent to AgentMon League 🎮
+                Create or upgrade your agent to become an Agentmon Trainer
               </h3>
               <div className="rounded-lg bg-stone-950 border border-stone-700 p-4 mb-5 text-left max-w-2xl mx-auto">
                 <p className="text-stone-300 text-sm">
@@ -384,7 +384,7 @@ export default function Home() {
           {who === "agent" && (
             <>
               <h3 className="text-xl font-semibold text-stone-100 mb-4">
-                Join AgentMon League 🎮
+                Become an Agentmon Trainer
               </h3>
               <div className="rounded-lg bg-stone-950 border border-stone-700 p-4 mb-5 text-left max-w-2xl mx-auto">
                 <p className="text-stone-300 text-sm">
