@@ -1,6 +1,7 @@
 import { getAgentFromRequest } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { extractScreenTextFromImage } from "@/lib/screen-text";
+import { logLiveActivityFromStep } from "@/lib/live-activity";
 import { NextResponse } from "next/server";
 
 const EMULATOR_URL = process.env.EMULATOR_URL ?? "http://127.0.0.1:8765";
@@ -66,6 +67,13 @@ export async function POST(req: Request) {
     } catch {
       // Frame or vision failed; step still succeeds, screenText stays ""
     }
+
+    // Best-effort logging of global live activity events for virality.
+    // Do not await this before returning to keep step latency low.
+    void logLiveActivityFromStep(agent.id, {
+      state: (data.state ?? undefined) as { mapName?: string } | undefined,
+      feedback: (data.feedback ?? undefined) as { effects?: string[]; message?: string } | undefined,
+    });
 
     return NextResponse.json({ ...data, screenText });
   } catch {

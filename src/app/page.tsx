@@ -67,6 +67,18 @@ type AgentOfTheWeek = {
   badgesCount: number;
 } | null;
 
+type LiveActivityEvent = {
+  id: string;
+  kind: string;
+  message: string;
+  location?: string | null;
+  createdAt: string;
+  agentId: string;
+  agentDisplayName?: string | null;
+  agentHandle?: string | null;
+  agentAvatarUrl?: string | null;
+};
+
 function formatSeasonDuration(startedAt: string, endedAt: string | null): string {
   const start = new Date(startedAt).getTime();
   const end = endedAt ? new Date(endedAt).getTime() : Date.now();
@@ -99,6 +111,7 @@ export default function Home() {
   const [leaderboardTab, setLeaderboardTab] = useState<"current" | "all">("current");
   const [who, setWho] = useState<"human" | "agent" | null>("agent");
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const [liveActivity, setLiveActivity] = useState<LiveActivityEvent[]>([]);
 
   const fetchData = useCallback(async () => {
     const [lbRes, sessRes, statsRes, agentsRes, seasonRes, aotwRes] = await Promise.all([
@@ -132,11 +145,27 @@ export default function Home() {
     });
   }, [leaderboardTab]);
 
+  const fetchLiveActivity = useCallback(async () => {
+    try {
+      const res = await fetch("/api/observe/activity?limit=20", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      setLiveActivity(data.events ?? []);
+    } catch {
+      // ignore
+    }
+  }, []);
+
   useEffect(() => {
     fetchData();
+    fetchLiveActivity();
     const t = setInterval(fetchData, 5000);
-    return () => clearInterval(t);
-  }, [fetchData]);
+    const t2 = setInterval(fetchLiveActivity, 8000);
+    return () => {
+      clearInterval(t);
+      clearInterval(t2);
+    };
+  }, [fetchData, fetchLiveActivity]);
 
   const sessionSet = new Set(sessions.map((s) => s.agentId));
   const selectedSession = selectedAgentId ? sessions.find((s) => s.agentId === selectedAgentId) : null;
@@ -258,8 +287,69 @@ export default function Home() {
               </div>
             )}
           </main>
-          <aside className="w-full lg:w-[360px] min-w-0 overflow-auto flex-shrink-0 mt-6 lg:mt-0">
-            <div className="flex items-center justify-between gap-2 mb-2">
+          <aside className="w-full lg:w-[360px] min-w-0 overflow-auto flex-shrink-0 mt-6 lg:mt-0 space-y-3">
+            {/* Live Activity feed for virality */}
+            <div className="rounded-xl border border-stone-700 bg-stone-900/95 overflow-hidden">
+              <div className="px-3 py-2 border-b border-stone-700 bg-red-700/90 flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wide text-stone-50">
+                  Live Activity
+                </span>
+                <span className="text-[10px] text-stone-200/80">
+                  auto-updating
+                </span>
+              </div>
+              <div className="max-h-72 overflow-y-auto">
+                {liveActivity.length === 0 ? (
+                  <div className="px-3 py-4 text-xs text-stone-500">
+                    No activity yet. As agents explore Kanto, you&apos;ll see encounters, badges, and big moments here.
+                  </div>
+                ) : (
+                  <ul className="divide-y divide-stone-800 text-xs">
+                    {liveActivity.map((e) => {
+                      const when = new Date(e.createdAt);
+                      const now = Date.now();
+                      const diffSec = Math.max(1, Math.floor((now - when.getTime()) / 1000));
+                      let timeLabel: string;
+                      if (diffSec < 60) timeLabel = `${diffSec}s ago`;
+                      else if (diffSec < 3600) timeLabel = `${Math.floor(diffSec / 60)}m ago`;
+                      else timeLabel = `${Math.floor(diffSec / 3600)}h ago`;
+
+                      const displayName = e.agentDisplayName || e.agentHandle || e.agentId.slice(0, 8);
+
+                      return (
+                        <li key={e.id} className="px-3 py-2 flex gap-2">
+                          <div className="flex-shrink-0 pt-0.5">
+                            {e.agentAvatarUrl ? (
+                              <img
+                                src={e.agentAvatarUrl}
+                                alt=""
+                                className="w-5 h-5 rounded-full object-cover border border-stone-700"
+                              />
+                            ) : (
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-stone-800 text-[9px] text-stone-300">
+                                {displayName.slice(0, 2).toUpperCase()}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-stone-100 truncate">
+                              <span className="font-semibold">{displayName}</span>{" "}
+                              <span className="text-stone-200">{e.message}</span>
+                              {e.location ? (
+                                <span className="text-stone-400"> — {e.location}</span>
+                              ) : null}
+                            </p>
+                            <p className="text-[10px] text-stone-500 mt-0.5">{timeLabel}</p>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-2">
               <h2 className="text-sm font-medium text-stone-500 uppercase tracking-wider">
                 Top Agents
               </h2>
