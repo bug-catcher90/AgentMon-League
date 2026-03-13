@@ -45,7 +45,8 @@ export async function GET(req: Request) {
         efficiency: Math.round(efficiency * 1000) / 1000,
       };
     })
-    .filter((e) => e.totalSteps > 0 || e.totalPlaytimeSeconds > 0)
+    // Do not filter by steps/playtime: any agent with a profile
+    // (i.e. has played and stopped at least one session) can appear.
     .sort((a, b) => b.efficiency - a.efficiency);
 
   // Show all played agents when fewer than 5; once there are 5+, show only top 5
