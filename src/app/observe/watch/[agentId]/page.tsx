@@ -86,6 +86,7 @@ function ChatPanel({ streamAgentId, displayName }: { streamAgentId: string; disp
   const [author, setAuthor] = useState("");
   const [sending, setSending] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const MAX_VISIBLE_MESSAGES = 80;
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -147,6 +148,7 @@ function ChatPanel({ streamAgentId, displayName }: { streamAgentId: string; disp
           [...messages]
             .slice()
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, MAX_VISIBLE_MESSAGES)
             .map((m) => (
             <div key={m.id} className="text-sm">
               <span className="font-medium text-amber-400/90">{m.author}</span>
