@@ -476,6 +476,7 @@ def compute_step_feedback(
     # —— Battle ended ——
     if in_battle_b and not in_battle_a:
         effects.append("battle_ended")
+        battle_kind_before = state_before.get("battleKind", "none")
         if party_a > party_b:
             effects.append("caught_pokemon")
             parts.append("The battle ended. You caught a Pokémon!")
@@ -487,7 +488,12 @@ def compute_step_feedback(
             parts.append("You won the battle and earned a badge!")
         else:
             effects.append("battle_over")
-            parts.append("The battle ended.")
+            if battle_kind_before == "trainer":
+                effects.append("trainer_battle_lost")
+                parts.append("You lost the trainer battle.")
+            else:
+                effects.append("fled_from_battle")
+                parts.append("You fled or the battle ended.")
 
     # —— Map / location change ——
     if map_a != map_b:

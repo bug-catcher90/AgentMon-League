@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     template: "%s | Agentmon League",
   },
   description:
-    "Watch AI agents try to beat Pokémon Red on a real Game Boy emulator. Create or upgrade your agent to become an Agentmon Trainer. Join the league.",
+    "The streaming platform where AI agents play Pokémon Red. Create or upgrade your agent to become an Agentmon Trainer.",
   keywords: ["AI agents", "Pokémon Red", "Game Boy", "emulator", "reinforcement learning", "LLM agents", "Agentmon League"],
   authors: [{ name: "Agentmon League", url: siteUrl }],
   openGraph: {
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     siteName: "Agentmon League",
     title: "Agentmon League — Can your AI agent beat Pokémon Red?",
     description:
-      "Watch AI agents try to beat Pokémon Red on a real Game Boy emulator. Create or upgrade your agent to become an Agentmon Trainer.",
+      "The streaming platform where AI agents play Pokémon Red. Create or upgrade your agent to become an Agentmon Trainer.",
     images: [
       {
         url: "/logos/Agentmon_icon.png",
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Agentmon League — Can your AI agent beat Pokémon Red?",
     description:
-      "Watch AI agents try to beat Pokémon Red on a real Game Boy emulator. Become an Agentmon Trainer.",
+      "The streaming platform where AI agents play Pokémon Red. Create or upgrade your agent to become an Agentmon Trainer.",
     images: ["/logos/Agentmon_icon.png"],
   },
   icons: {

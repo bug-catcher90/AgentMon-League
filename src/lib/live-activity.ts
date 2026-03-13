@@ -15,6 +15,8 @@ type StepPayload = {
 type LiveActivityKind =
   | "wild_encounter_started"
   | "trainer_battle_started"
+  | "trainer_battle_lost"
+  | "fled_from_battle"
   | "battle_over"
   | "pokemon_caught"
   | "pokemon_evolved"
@@ -42,7 +44,7 @@ function deriveEventsFromStep(payload: StepPayload): LiveActivityDraft[] {
   if (tags.has("wild_pokemon_appeared") || tags.has("wild_encounter")) {
     events.push({
       kind: "wild_encounter_started",
-      message: "Encountered a wild Pokémon",
+      message: "A wild Pokémon appeared!",
       location,
     });
   }
@@ -51,7 +53,7 @@ function deriveEventsFromStep(payload: StepPayload): LiveActivityDraft[] {
   if (tags.has("trainer_battle") || tags.has("trainer_challenged_you")) {
     events.push({
       kind: "trainer_battle_started",
-      message: "Started a battle with a trainer",
+      message: "A trainer wants to battle!",
       location,
     });
   }
@@ -60,7 +62,7 @@ function deriveEventsFromStep(payload: StepPayload): LiveActivityDraft[] {
   if (tags.has("caught_pokemon")) {
     events.push({
       kind: "pokemon_caught",
-      message: "Caught a Pokémon",
+      message: "Caught a Pokémon!",
       location,
     });
   }
@@ -69,24 +71,58 @@ function deriveEventsFromStep(payload: StepPayload): LiveActivityDraft[] {
   if (tags.has("pokemon_evolved")) {
     events.push({
       kind: "pokemon_evolved",
-      message: "A Pokémon evolved",
+      message: "A Pokémon evolved!",
       location,
     });
   }
 
-  // Trainer battle won / badge earned
+  // Trainer battle won
   if (tags.has("won_trainer_battle")) {
     events.push({
       kind: "trainer_battle_won",
-      message: "Won a trainer battle",
+      message: "Won the trainer battle!",
       location,
     });
   }
 
+  // Badge earned
   if (tags.has("earned_badge")) {
     events.push({
       kind: "badge_earned",
-      message: "Earned a gym badge",
+      message: "Earned a gym badge!",
+      location,
+    });
+  }
+
+  // Trainer battle lost (defeated by trainer)
+  if (tags.has("trainer_battle_lost")) {
+    events.push({
+      kind: "trainer_battle_lost",
+      message: "Lost the trainer battle",
+      location,
+    });
+  }
+
+  // Fled from wild battle
+  if (tags.has("fled_from_battle")) {
+    events.push({
+      kind: "fled_from_battle",
+      message: "Fled from the wild Pokémon",
+      location,
+    });
+  }
+
+  // Generic battle over (fallback when neither trainer_battle_lost nor fled_from_battle)
+  if (
+    tags.has("battle_over") &&
+    !tags.has("caught_pokemon") &&
+    !tags.has("won_trainer_battle") &&
+    !tags.has("trainer_battle_lost") &&
+    !tags.has("fled_from_battle")
+  ) {
+    events.push({
+      kind: "battle_over",
+      message: "Left a battle",
       location,
     });
   }
@@ -100,7 +136,7 @@ function deriveEventsFromStep(payload: StepPayload): LiveActivityDraft[] {
     });
   }
 
-  // Map / location change
+  // Map / location change (cities, routes, buildings)
   const enteredTag = effects.find((e) => e.startsWith("entered_"));
   if (enteredTag) {
     const raw = enteredTag.replace(/^entered_/, "");
@@ -109,15 +145,6 @@ function deriveEventsFromStep(payload: StepPayload): LiveActivityDraft[] {
       kind: "location_entered",
       message: `Entered ${niceName}`,
       location: niceName,
-    });
-  }
-
-  // Generic battle over (fled or was defeated)
-  if (tags.has("battle_over") && !tags.has("caught_pokemon") && !tags.has("won_trainer_battle")) {
-    events.push({
-      kind: "battle_over",
-      message: "Left a battle",
-      location,
     });
   }
 
