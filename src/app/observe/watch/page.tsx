@@ -213,12 +213,6 @@ function WatchPageContent() {
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col">
-      <header className="border-b border-stone-700 px-4 py-3 flex items-center gap-4 flex-wrap">
-        <Link href="/" className="text-amber-400 hover:underline">← Home</Link>
-        <h1 className="text-xl font-semibold text-amber-400">Watch — Kanto</h1>
-        <span className="text-stone-500 text-sm">{sessions.length} agent{sessions.length !== 1 ? "s" : ""} playing</span>
-      </header>
-
       {season && (
         <section className="border-b-2 border-amber-500/50 bg-amber-500/10 px-6 py-2.5">
           <div className="flex flex-wrap items-center gap-3">

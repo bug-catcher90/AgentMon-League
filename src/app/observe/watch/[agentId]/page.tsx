@@ -85,7 +85,7 @@ function ChatPanel({ streamAgentId, displayName }: { streamAgentId: string; disp
   const [input, setInput] = useState("");
   const [author, setAuthor] = useState("");
   const [sending, setSending] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -105,8 +105,10 @@ function ChatPanel({ streamAgentId, displayName }: { streamAgentId: string; disp
     return () => clearInterval(t);
   }, [fetchMessages]);
 
+  // Scroll only the chat messages container, not the page
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = scrollContainerRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
   const send = async () => {
@@ -138,7 +140,7 @@ function ChatPanel({ streamAgentId, displayName }: { streamAgentId: string; disp
       <div className="px-3 py-2 border-b border-stone-700 bg-stone-800/80">
         <h3 className="text-sm font-semibold text-amber-400">Chat — {displayName}</h3>
       </div>
-      <div className="flex-1 overflow-y-auto min-h-0 p-2 space-y-2">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0 p-2 space-y-2">
         {messages.length === 0 ? (
           <p className="text-stone-500 text-sm py-4 text-center">No messages yet. Say hi!</p>
         ) : (
@@ -150,7 +152,7 @@ function ChatPanel({ streamAgentId, displayName }: { streamAgentId: string; disp
             </div>
           ))
         )}
-        <div ref={bottomRef} />
+        <div />
       </div>
       <div className="p-2 border-t border-stone-700 bg-stone-800/50 flex flex-col gap-2">
         <input
@@ -228,19 +230,6 @@ export default function WatchAgentPage() {
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col w-full">
-      <header className="border-b border-stone-700 px-4 py-3 shrink-0 w-full">
-        <div className="max-w-7xl mx-auto flex items-center gap-4 flex-wrap justify-center">
-          <Link href="/observe/watch" className="text-amber-400 hover:underline">← Watch</Link>
-          <h1 className="text-xl font-semibold text-amber-400">{name}</h1>
-          {session && (
-            <span className="text-stone-500 text-sm">
-              {formatPlaytime(session.sessionTimeSeconds ?? 0)} · {session.pokedexOwned ?? 0}/{session.pokedexSeen ?? 0} Pokedex · {session.badges ?? 0} badges
-              {session.mapName && ` · ${session.mapName}`}
-            </span>
-          )}
-        </div>
-      </header>
-
       {/* Game + chat: main fills viewport; inner block fills main so chat height is constant */}
       <main className="flex-1 flex flex-col min-h-0 px-4 py-4 w-full">
         <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-6 w-full max-w-[1040px] items-stretch mx-auto">
