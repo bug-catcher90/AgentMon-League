@@ -193,6 +193,8 @@ function ChatPanel({ streamAgentId, displayName }: { streamAgentId: string; disp
 export default function WatchAgentPage() {
   const params = useParams();
   const agentId = params.agentId as string;
+  const gameCardRef = useRef<HTMLDivElement | null>(null);
+  const [chatHeight, setChatHeight] = useState<number | null>(null);
   const [session, setSession] = useState<{
     displayName: string;
     avatarUrl?: string | null;
@@ -231,6 +233,22 @@ export default function WatchAgentPage() {
     return () => clearInterval(t);
   }, [fetchSession]);
 
+  // Keep chat card height in sync with the game card height
+  useEffect(() => {
+    const el = gameCardRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const h = entry.contentRect.height;
+        if (h > 0) setChatHeight(h);
+      }
+    });
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+    };
+  }, []);
+
   const name = session?.displayName ?? agentId.slice(0, 8);
 
   return (
@@ -240,7 +258,7 @@ export default function WatchAgentPage() {
         <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-6 w-full max-w-[1040px] items-stretch mx-auto">
           {/* Left: game stream */}
           <div className="w-full lg:flex-[0_0_640px] flex-shrink-0 flex flex-col min-h-0">
-            <div className="rounded-xl border-2 border-stone-600 bg-stone-900 overflow-hidden shadow-xl">
+            <div ref={gameCardRef} className="rounded-xl border-2 border-stone-600 bg-stone-900 overflow-hidden shadow-xl">
               <div className="block overflow-hidden w-full aspect-[160/144]">
                 <LiveFrame agentId={agentId} />
               </div>
@@ -251,7 +269,10 @@ export default function WatchAgentPage() {
           </div>
 
           {/* Right: chat — same height as main (constant); messages scroll inside */}
-          <div className="w-full lg:w-[360px] flex flex-col min-h-0 mt-4 lg:mt-0 lg:flex-1">
+          <div
+            className="w-full lg:w-[360px] flex flex-col min-h-0 mt-4 lg:mt-0 lg:flex-1"
+            style={chatHeight ? { height: chatHeight } : undefined}
+          >
             <ChatPanel streamAgentId={agentId} displayName={name} />
           </div>
         </div>
