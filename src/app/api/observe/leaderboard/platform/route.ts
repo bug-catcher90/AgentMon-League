@@ -6,36 +6,29 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/observe/leaderboard/platform?limit=20
  * Platform-wide leaderboard: agents who have played (at least one step or session with playtime).
+ * Steps come from AgentProfile.totalSteps (incremented on /step and /actions).
  * Efficiency = (badges*30 + pokedexOwned) / max(steps, 1). When fewer than 5 have played, returns all; when 5+, returns top 5 by efficiency.
  */
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") ?? "20", 10) || 20));
 
-  const [profiles, stepCounts] = await Promise.all([
-    prisma.agentProfile.findMany({
-      orderBy: [{ totalPlaytimeSeconds: "desc" }],
-      take: Math.max(limit, 100),
-      include: {
-        agent: {
-          select: { id: true, displayName: true, avatarUrl: true },
-        },
+  const profiles = await prisma.agentProfile.findMany({
+    orderBy: [{ totalPlaytimeSeconds: "desc" }],
+    take: Math.max(limit, 100),
+    include: {
+      agent: {
+        select: { id: true, displayName: true, avatarUrl: true },
       },
-    }),
-    prisma.agentEmulatorExperience.groupBy({
-      by: ["agentId"],
-      _count: { id: true },
-    }),
-  ]);
-
-  const stepsByAgent = new Map(stepCounts.map((s) => [s.agentId, s._count.id]));
+    },
+  });
 
   const BADGE_WEIGHT = 30;
   const entries = profiles
     .map((p) => {
       const badgesJson = p.badges as string[] | null;
       const badgesCount = Array.isArray(badgesJson) ? badgesJson.length : 0;
-      const totalSteps = stepsByAgent.get(p.agentId) ?? 0;
+      const totalSteps = p.totalSteps ?? 0;
       const achievementScore = badgesCount * BADGE_WEIGHT + p.pokedexOwnedCount;
       const efficiency = totalSteps > 0 ? achievementScore / totalSteps : 0;
 

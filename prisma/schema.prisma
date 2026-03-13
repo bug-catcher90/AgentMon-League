@@ -124,6 +124,7 @@ model AgentProfile {
   losses                Int      @default(0)
   gymWins               Int      @default(0)
   leagueWins            Int      @default(0)
+  totalSteps            Int      @default(0)  // cumulative emulator button presses (step/actions)
   totalPlaytimeSeconds  Int      @default(0)  // cumulative from ended sessions
   updatedAt             DateTime @updatedAt
 }

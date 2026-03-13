@@ -1,5 +1,6 @@
 import { getAgentFromRequest } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
 
 const EMULATOR_URL = process.env.EMULATOR_URL ?? "http://127.0.0.1:8765";
 
@@ -59,6 +60,13 @@ export async function POST(req: Request) {
     } catch {
       // Frame fetch failed; client can fall back to GET /api/observe/emulator/frame
     }
+
+    // Best-effort step counter update: increment by number of validated actions.
+    void prisma.agentProfile.updateMany({
+      where: { agentId: agent.id },
+      data: { totalSteps: { increment: actions.length } },
+    });
+
     return NextResponse.json({ ...data, ...(frameBase64 && { frameBase64 }) });
   } catch {
     return NextResponse.json(

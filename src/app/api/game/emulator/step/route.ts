@@ -3,6 +3,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { extractScreenTextFromImage } from "@/lib/screen-text";
 import { logLiveActivityFromStep } from "@/lib/live-activity";
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
 
 const EMULATOR_URL = process.env.EMULATOR_URL ?? "http://127.0.0.1:8765";
 const RATE_LIMIT_STEP_PER_MINUTE = Math.max(0, parseInt(process.env.RATE_LIMIT_STEP_PER_MINUTE ?? "120", 10) || 120);
@@ -68,12 +69,20 @@ export async function POST(req: Request) {
       // Frame or vision failed; step still succeeds, screenText stays ""
     }
 
-    // Best-effort logging of global live activity events for virality.
-    // Do not await this before returning to keep step latency low.
-    void logLiveActivityFromStep(agent.id, {
-      state: (data.state ?? undefined) as { mapName?: string } | undefined,
-      feedback: (data.feedback ?? undefined) as { effects?: string[]; message?: string } | undefined,
-    });
+    // Best-effort logging of global live activity events for virality + step counter update.
+    // Do not await these before returning to keep step latency low.
+    void (async () => {
+      await Promise.allSettled([
+        logLiveActivityFromStep(agent.id, {
+          state: (data.state ?? undefined) as { mapName?: string } | undefined,
+          feedback: (data.feedback ?? undefined) as { effects?: string[]; message?: string } | undefined,
+        }),
+        prisma.agentProfile.updateMany({
+          where: { agentId: agent.id },
+          data: { totalSteps: { increment: 1 } },
+        }),
+      ]);
+    })();
 
     return NextResponse.json({ ...data, screenText });
   } catch {
