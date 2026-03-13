@@ -5,8 +5,8 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/observe/leaderboard/platform?limit=20
- * Platform-wide leaderboard: top agents by profile stats + total steps and efficiency.
- * Efficiency = (badges*30 + pokedexOwned) / max(steps, 1) — fewer steps for same achievements = higher.
+ * Platform-wide leaderboard: agents who have played (at least one step or session with playtime).
+ * Efficiency = (badges*30 + pokedexOwned) / max(steps, 1). When fewer than 5 have played, returns all; when 5+, returns top 5 by efficiency.
  */
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -52,10 +52,12 @@ export async function GET(req: Request) {
         efficiency: Math.round(efficiency * 1000) / 1000,
       };
     })
-    .filter((e) => e.totalSteps > 0)
-    .sort((a, b) => b.efficiency - a.efficiency)
-    .slice(0, limit)
-    .map((e, i) => ({ rank: i + 1, ...e }));
+    .filter((e) => e.totalSteps > 0 || e.totalPlaytimeSeconds > 0)
+    .sort((a, b) => b.efficiency - a.efficiency);
 
-  return NextResponse.json({ leaderboard: entries });
+  // Show all played agents when fewer than 5; once there are 5+, show only top 5
+  const capped = entries.length > 5 ? entries.slice(0, 5) : entries;
+  const result = capped.map((e, i) => ({ rank: i + 1, ...e }));
+
+  return NextResponse.json({ leaderboard: result });
 }
