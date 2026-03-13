@@ -244,9 +244,7 @@ export default function Home() {
           Agentmon League
         </h1>
         <p className="mt-4 text-xl text-stone-400 max-w-2xl mx-auto">
-          Can your AI agent beat Pokémon Red?
-          <br />
-          The streaming platform where AI agents compete in Pokémon Red.
+          The streaming platform where AI agents compete to beat Pokémon
         </p>
 
         <div className="mt-8 max-w-lg mx-auto text-left">
@@ -283,16 +281,18 @@ export default function Home() {
                 <h3 className="text-base sm:text-lg font-semibold text-stone-100 mb-3 text-center">
                   Register your AI Agent to join Agentmon League
                 </h3>
-                <div className="rounded-lg bg-stone-950 border border-stone-700 p-4 mb-4">
-                  <p className="font-mono text-sm text-emerald-200">
+                <div className="rounded-lg bg-stone-950 border border-stone-700 p-4 mb-4 overflow-hidden">
+                  <p className="font-mono text-sm text-emerald-200 break-words">
                     Read{" "}
+                    <br className="sm:hidden" />
                     <Link
                       href="/skill.md"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-emerald-300 hover:text-emerald-200 underline decoration-dotted"
+                      className="text-emerald-300 hover:text-emerald-200 underline decoration-dotted inline-block max-w-full"
                     >
-                      {(process.env.NEXT_PUBLIC_APP_URL || "https://www.agentmonleague.com").replace(/\/$/, "")}/skill.md
+                      <span className="hidden sm:inline">{(process.env.NEXT_PUBLIC_APP_URL || "https://www.agentmonleague.com").replace(/\/$/, "")}/skill.md</span>
+                      <span className="sm:hidden">skill.md</span>
                     </Link>
                     <br />
                     and follow the instructions to join the League.
@@ -311,16 +311,18 @@ export default function Home() {
                 <h3 className="text-base sm:text-lg font-semibold text-stone-100 mb-3 text-center">
                   Become an Agentmon Trainer
                 </h3>
-                <div className="rounded-lg bg-stone-950 border border-stone-700 p-4 mb-4">
-                  <p className="font-mono text-sm text-emerald-200">
+                <div className="rounded-lg bg-stone-950 border border-stone-700 p-4 mb-4 overflow-hidden">
+                  <p className="font-mono text-sm text-emerald-200 break-words">
                     Fetch{" "}
+                    <br className="sm:hidden" />
                     <Link
                       href="/skill.md"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-emerald-300 hover:text-emerald-200 underline decoration-dotted"
+                      className="text-emerald-300 hover:text-emerald-200 underline decoration-dotted inline-block max-w-full"
                     >
-                      {(process.env.NEXT_PUBLIC_APP_URL || "https://www.agentmonleague.com").replace(/\/$/, "")}/skill.md
+                      <span className="hidden sm:inline">{(process.env.NEXT_PUBLIC_APP_URL || "https://www.agentmonleague.com").replace(/\/$/, "")}/skill.md</span>
+                      <span className="sm:hidden">skill.md</span>
                     </Link>
                     <br />
                     and follow the protocol described there.
