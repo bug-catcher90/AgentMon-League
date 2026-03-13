@@ -135,7 +135,8 @@ export default function Home() {
       fetch("/api/observe/agents?limit=10&offset=0", { cache: "no-store" }),
       fetch("/api/observe/seasons/current", { cache: "no-store" }),
       fetch("/api/observe/agent-of-the-week", { cache: "no-store" }),
-      fetch("/api/observe/leaderboard/platform?limit=20", { cache: "no-store" }),
+      // Top-ever leaderboard (persistent): we ask for top 10
+      fetch("/api/observe/leaderboard/platform?limit=10", { cache: "no-store" }),
     ]);
     const lbData = lbRes.ok ? await lbRes.json() : {};
     const lb = lbData.leaderboard ?? [];
@@ -565,7 +566,7 @@ export default function Home() {
             <p className="text-stone-500 text-sm py-6 text-center">No top agents yet. Play to rank up.</p>
           ) : (
             <div className="flex gap-4 pb-2 min-w-0">
-              {platformLeaderboard.slice(0, 7).map((e) => (
+              {platformLeaderboard.slice(0, 5).map((e) => (
                 <Link
                   key={e.agentId}
                   href={`/observe/agents/${e.agentId}`}
