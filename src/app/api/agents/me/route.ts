@@ -24,7 +24,7 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const updates: { displayName?: string; avatarUrl?: string | null } = {};
+  const updates: { displayName?: string | null; avatarUrl?: string | null } = {};
   if (body.displayName !== undefined) {
     const s = typeof body.displayName === "string" ? body.displayName.trim() : "";
     updates.displayName = s ? s.slice(0, 100) : null;

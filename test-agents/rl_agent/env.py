@@ -1,5 +1,6 @@
 """Gymnasium env that wraps the AgentMon League API. One episode = one session."""
 
+import base64
 import time
 
 import numpy as np
@@ -117,7 +118,12 @@ class EmulatorEnv(Env):
         self._state_before = state_after
 
         agent_id = self._session_agent_id or self.agent_id
-        frame_bytes = get_frame(agent_id)
+        # Use frame from actions response when present (saves one round-trip in prod).
+        b64 = result.get("frameBase64")
+        if b64:
+            frame_bytes = base64.b64decode(b64)
+        else:
+            frame_bytes = get_frame(agent_id)
         obs = build_obs_from_frame_and_state(
             frame_bytes, state_after, self._recent_screens, self._recent_actions
         )

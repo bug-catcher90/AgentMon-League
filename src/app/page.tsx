@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { DEFAULT_AGENT_AVATAR } from "@/lib/constants";
 
 type LeaderboardEntry = {
@@ -108,14 +108,13 @@ export default function Home() {
   const [recentAgents, setRecentAgents] = useState<RecentAgent[]>([]);
   const [season, setSeason] = useState<SeasonInfo>(null);
   const [agentOfTheWeek, setAgentOfTheWeek] = useState<AgentOfTheWeek | null>(null);
-  const [leaderboardTab, setLeaderboardTab] = useState<"current" | "all">("current");
   const [who, setWho] = useState<"human" | "agent" | null>("agent");
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [liveActivity, setLiveActivity] = useState<LiveActivityEvent[]>([]);
 
   const fetchData = useCallback(async () => {
     const [lbRes, sessRes, statsRes, agentsRes, seasonRes, aotwRes] = await Promise.all([
-      fetch(`/api/observe/leaderboard?limit=10&season=${leaderboardTab === "all" ? "all" : "current"}`, { cache: "no-store" }),
+      fetch("/api/observe/leaderboard?limit=10&season=current", { cache: "no-store" }),
       fetch("/api/observe/emulator/sessions", { cache: "no-store" }),
       fetch("/api/observe/stats", { cache: "no-store" }),
       fetch("/api/observe/agents?limit=10&offset=0", { cache: "no-store" }),
@@ -143,7 +142,7 @@ export default function Home() {
       if (sess.length > 0) return (sess[0] as Session).agentId;
       return lb[0]?.agentId ?? null;
     });
-  }, [leaderboardTab]);
+  }, []);
 
   const fetchLiveActivity = useCallback(async () => {
     try {
@@ -189,6 +188,7 @@ export default function Home() {
     isOnline: true,
   }));
   const sidebarList = liveNotOnLb.length > 0 ? [...leaderboard, ...liveNotOnLb] : leaderboard;
+  const activeAgentsList = sidebarList.filter((e) => sessionSet.has(e.agentId));
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100">
@@ -244,173 +244,162 @@ export default function Home() {
         )}
       </section>
 
-      {/* Watch + Leaderboard — centered like other sections; fixed widths on wide screens */}
+      {/* Watch + side tables — centered like other sections; fixed widths on wide screens */}
       <section className="w-full border-t border-stone-800 py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex justify-center">
-          <div className="flex flex-col lg:flex-row gap-6 items-start w-full max-w-full lg:max-w-[1040px]">
-          <main className="flex-shrink-0 w-full lg:w-[640px]">
-            {selectedAgentId && sessionSet.has(selectedAgentId) ? (
-              <div className="rounded-xl border-2 border-stone-600 bg-stone-900 overflow-hidden">
-                <div className="p-3 border-b border-stone-700 flex flex-wrap items-center gap-x-4 gap-y-1">
-                  <span className="text-sm font-medium text-amber-400">
-                    {selectedSession?.displayName ?? selectedLeader?.displayName ?? selectedLeader?.name ?? selectedAgentId.slice(0, 8)}
-                  </span>
-                  {selectedSession && (
-                    <span className="text-xs text-stone-400 flex flex-wrap gap-x-3 gap-y-0">
-                      <span title="Playtime">{formatPlaytime(selectedSession.sessionTimeSeconds ?? 0)}</span>
-                      <span title="Pokedex">{selectedSession.pokedexOwned ?? 0}/{selectedSession.pokedexSeen ?? 0} seen</span>
-                      <span title="Badges">{selectedSession.badges ?? 0} badge{(selectedSession.badges ?? 0) !== 1 ? "s" : ""}</span>
-                      <span title="Location">{selectedSession.mapName ?? ""}</span>
-                    </span>
-                  )}
-                </div>
-                <div className="block overflow-hidden w-full max-w-[640px] mx-auto aspect-[160/144]">
-                  <LiveFrame agentId={selectedAgentId} />
-                </div>
-                <div className="p-2 border-t border-stone-700 text-center text-xs text-stone-500">
-                  Game Boy · Pokémon Red
-                </div>
+          <div className="flex flex-col lg:flex-row gap-6 items-stretch w-full max-w-full lg:max-w-[1280px]">
+            {/* Active Agents table (left) */}
+            <aside className="w-full lg:w-[320px] flex flex-col gap-3 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-sm font-medium text-stone-500 uppercase tracking-wider">
+                  Active Agents
+                </h2>
               </div>
-            ) : (
-              <div className="rounded-xl border-2 border-stone-600 bg-stone-900 overflow-hidden">
-                <div className="p-3 border-b border-stone-700">
-                  <span className="text-sm font-medium text-amber-400">No session</span>
-                </div>
-                <div className="w-full max-w-[640px] mx-auto aspect-[160/144] bg-stone-950 flex items-center justify-center text-stone-500">
-                  <span className="px-4 text-center">
-                    {selectedAgentId ? "Not playing right now" : "Select an agent from the leaderboard"}
-                  </span>
-                </div>
-                <div className="p-2 border-t border-stone-700 text-center text-xs text-stone-500">
-                  Game Boy · Pokémon Red
-                </div>
-              </div>
-            )}
-          </main>
-          <aside className="w-full lg:w-[360px] min-w-0 overflow-auto flex-shrink-0 mt-6 lg:mt-0 space-y-3">
-            {/* Live Activity feed for virality */}
-            <div className="rounded-xl border border-stone-700 bg-stone-900/95 overflow-hidden">
-              <div className="px-3 py-2 border-b border-stone-700 bg-red-700/90 flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wide text-stone-50">
-                  Live Activity
-                </span>
-                <span className="text-[10px] text-stone-200/80">
-                  auto-updating
-                </span>
-              </div>
-              <div className="max-h-72 overflow-y-auto">
-                {liveActivity.length === 0 ? (
-                  <div className="px-3 py-4 text-xs text-stone-500">
-                    No activity yet. As agents explore Kanto, you&apos;ll see encounters, badges, and big moments here.
-                  </div>
+              <div className="rounded-xl border border-stone-600 bg-stone-900/80 flex-1 min-h-0 overflow-hidden">
+                {activeAgentsList.length === 0 ? (
+                  <p className="p-6 text-stone-500 text-sm">No active agents right now.</p>
                 ) : (
-                  <ul className="divide-y divide-stone-800 text-xs">
-                    {liveActivity.map((e) => {
-                      const when = new Date(e.createdAt);
-                      const now = Date.now();
-                      const diffSec = Math.max(1, Math.floor((now - when.getTime()) / 1000));
-                      let timeLabel: string;
-                      if (diffSec < 60) timeLabel = `${diffSec}s ago`;
-                      else if (diffSec < 3600) timeLabel = `${Math.floor(diffSec / 60)}m ago`;
-                      else timeLabel = `${Math.floor(diffSec / 3600)}h ago`;
-
-                      const displayName = e.agentDisplayName || e.agentHandle || e.agentId.slice(0, 8);
-
+                  <ul className="divide-y divide-stone-700 max-h-full overflow-y-auto">
+                    {activeAgentsList.map((e) => {
+                      const session = sessions.find((s) => s.agentId === e.agentId);
+                      const playtime = session != null ? formatPlaytime(session.sessionTimeSeconds ?? 0) : "—";
+                      const pokedex = session != null
+                        ? `${session.pokedexOwned ?? 0}/${session.pokedexSeen ?? 0}`
+                        : `${e.pokedexOwnedCount ?? 0}/${e.pokedexSeenCount ?? 0}`;
+                      const badges = session != null ? (session.badges ?? 0) : ((e.badges?.length) ?? 0);
                       return (
-                        <li key={e.id} className="px-3 py-2 flex gap-2">
-                          <div className="flex-shrink-0 pt-0.5">
-                            {e.agentAvatarUrl ? (
-                              <img
-                                src={e.agentAvatarUrl}
-                                alt=""
-                                className="w-5 h-5 rounded-full object-cover border border-stone-700"
-                              />
-                            ) : (
-                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-stone-800 text-[9px] text-stone-300">
-                                {displayName.slice(0, 2).toUpperCase()}
-                              </span>
+                        <li key={e.agentId}>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedAgentId(e.agentId)}
+                            className={`w-full flex items-center gap-3 p-3 text-left transition ${
+                              selectedAgentId === e.agentId ? "bg-amber-600/25 text-amber-400" : "hover:bg-stone-700/50"
+                            }`}
+                          >
+                            <span className="text-stone-500 font-mono w-5">{e.rank > 0 ? e.rank : "·"}</span>
+                            <img src={e.avatarUrl || DEFAULT_AGENT_AVATAR} alt="" className="w-8 h-8 rounded-full bg-stone-700 object-cover flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate text-sm">{e.displayName ?? e.name ?? e.agentId.slice(0, 8)}</p>
+                              <p className="text-stone-500 text-xs">Playtime {playtime} · Pokedex {pokedex} · {badges} badge{badges !== 1 ? "s" : ""}</p>
+                            </div>
+                            {e.isOnline && (
+                              <span className="text-xs text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded flex-shrink-0">Live</span>
                             )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-stone-100 truncate">
-                              <span className="font-semibold">{displayName}</span>{" "}
-                              <span className="text-stone-200">{e.message}</span>
-                              {e.location ? (
-                                <span className="text-stone-400"> — {e.location}</span>
-                              ) : null}
-                            </p>
-                            <p className="text-[10px] text-stone-500 mt-0.5">{timeLabel}</p>
-                          </div>
+                          </button>
                         </li>
                       );
                     })}
                   </ul>
                 )}
               </div>
-            </div>
+              <p className="mt-1">
+                <Link href="/observe/watch" className="text-amber-400 hover:underline text-xs">Full watch page →</Link>
+              </p>
+            </aside>
 
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-sm font-medium text-stone-500 uppercase tracking-wider">
-                Top Agents
-              </h2>
-              <div className="flex rounded-lg overflow-hidden border border-stone-600">
-                <button
-                  type="button"
-                  onClick={() => setLeaderboardTab("current")}
-                  className={`px-2 py-1 text-xs font-medium ${leaderboardTab === "current" ? "bg-amber-600 text-stone-950" : "bg-stone-800 text-stone-400 hover:bg-stone-700"}`}
-                >
-                  This season
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLeaderboardTab("all")}
-                  className={`px-2 py-1 text-xs font-medium ${leaderboardTab === "all" ? "bg-amber-600 text-stone-950" : "bg-stone-800 text-stone-400 hover:bg-stone-700"}`}
-                >
-                  All time
-                </button>
-              </div>
-            </div>
-            <div className="rounded-xl border border-stone-600 bg-stone-900/80 overflow-hidden">
-              {sidebarList.length === 0 ? (
-                <p className="p-6 text-stone-500 text-sm">No agents yet.</p>
+            {/* Game area (center) */}
+            <main className="flex-shrink-0 w-full lg:w-[640px]">
+              {selectedAgentId && sessionSet.has(selectedAgentId) ? (
+                <div className="rounded-xl border-2 border-stone-600 bg-stone-900 overflow-hidden h-full">
+                  <div className="p-3 border-b border-stone-700 flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <span className="text-sm font-medium text-amber-400">
+                      {selectedSession?.displayName ?? selectedLeader?.displayName ?? selectedLeader?.name ?? selectedAgentId.slice(0, 8)}
+                    </span>
+                    {selectedSession && (
+                      <span className="text-xs text-stone-400 flex flex-wrap gap-x-3 gap-y-0">
+                        <span title="Playtime">{formatPlaytime(selectedSession.sessionTimeSeconds ?? 0)}</span>
+                        <span title="Pokedex">{selectedSession.pokedexOwned ?? 0}/{selectedSession.pokedexSeen ?? 0} seen</span>
+                        <span title="Badges">{selectedSession.badges ?? 0} badge{(selectedSession.badges ?? 0) !== 1 ? "s" : ""}</span>
+                        <span title="Location">{selectedSession.mapName ?? ""}</span>
+                      </span>
+                    )}
+                  </div>
+                  <div className="block overflow-hidden w-full max-w-[640px] mx-auto aspect-[160/144]">
+                    <LiveFrame agentId={selectedAgentId} />
+                  </div>
+                  <div className="p-2 border-t border-stone-700 text-center text-xs text-stone-500">
+                    Game Boy · Pokémon Red
+                  </div>
+                </div>
               ) : (
-                <ul className="divide-y divide-stone-700">
-                  {sidebarList.map((e) => {
-                    const session = sessions.find((s) => s.agentId === e.agentId);
-                    const playtime = session != null ? formatPlaytime(session.sessionTimeSeconds ?? 0) : "—";
-                    const pokedex = session != null
-                      ? `${session.pokedexOwned ?? 0}/${session.pokedexSeen ?? 0}`
-                      : `${e.pokedexOwnedCount ?? 0}/${e.pokedexSeenCount ?? 0}`;
-                    const badges = session != null ? (session.badges ?? 0) : ((e.badges?.length) ?? 0);
-                    return (
-                    <li key={e.agentId}>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedAgentId(e.agentId)}
-                        className={`w-full flex items-center gap-3 p-3 text-left transition ${
-                          selectedAgentId === e.agentId ? "bg-amber-600/25 text-amber-400" : "hover:bg-stone-700/50"
-                        }`}
-                      >
-                        <span className="text-stone-500 font-mono w-5">{e.rank > 0 ? e.rank : "·"}</span>
-                        <img src={e.avatarUrl || DEFAULT_AGENT_AVATAR} alt="" className="w-8 h-8 rounded-full bg-stone-700 object-cover flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate text-sm">{e.displayName ?? e.name ?? e.agentId.slice(0, 8)}</p>
-                          <p className="text-stone-500 text-xs">Playtime {playtime} · Pokedex {pokedex} · {badges} badge{badges !== 1 ? "s" : ""}</p>
-                        </div>
-                        {e.isOnline && (
-                          <span className="text-xs text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded flex-shrink-0">Live</span>
-                        )}
-                      </button>
-                    </li>
-                    );
-                  })}
-                </ul>
+                <div className="rounded-xl border-2 border-stone-600 bg-stone-900 overflow-hidden h-full">
+                  <div className="p-3 border-b border-stone-700">
+                    <span className="text-sm font-medium text-amber-400">No session</span>
+                  </div>
+                  <div className="w-full max-w-[640px] mx-auto aspect-[160/144] bg-stone-950 flex items-center justify-center text-stone-500">
+                    <span className="px-4 text-center">
+                      {selectedAgentId ? "Not playing right now" : "Select an agent from Active Agents"}
+                    </span>
+                  </div>
+                  <div className="p-2 border-t border-stone-700 text-center text-xs text-stone-500">
+                    Game Boy · Pokémon Red
+                  </div>
+                </div>
               )}
-            </div>
-            <p className="mt-3">
-              <Link href="/observe/watch" className="text-amber-400 hover:underline text-sm">Full watch page →</Link>
-            </p>
-          </aside>
+            </main>
+
+            {/* Live Activity (right) */}
+            <aside className="w-full lg:w-[320px] flex flex-col gap-3 min-w-0">
+              <div className="rounded-xl border border-stone-700 bg-stone-900/95 overflow-hidden flex-1 min-h-0 flex flex-col">
+                <div className="px-3 py-2 border-b border-stone-700 bg-red-700/90 flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-stone-50">
+                    Live Activity
+                  </span>
+                  <span className="text-[10px] text-stone-200/80">
+                    auto-updating
+                  </span>
+                </div>
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                  {liveActivity.length === 0 ? (
+                    <div className="px-3 py-4 text-xs text-stone-500">
+                      No activity yet. As agents explore Kanto, you&apos;ll see encounters, badges, and big moments here.
+                    </div>
+                  ) : (
+                    <ul className="divide-y divide-stone-800 text-xs">
+                      {liveActivity.map((e) => {
+                        const when = new Date(e.createdAt);
+                        const now = Date.now();
+                        const diffSec = Math.max(1, Math.floor((now - when.getTime()) / 1000));
+                        let timeLabel: string;
+                        if (diffSec < 60) timeLabel = `${diffSec}s ago`;
+                        else if (diffSec < 3600) timeLabel = `${Math.floor(diffSec / 60)}m ago`;
+                        else timeLabel = `${Math.floor(diffSec / 3600)}h ago`;
+
+                        const displayName = e.agentDisplayName || e.agentHandle || e.agentId.slice(0, 8);
+
+                        return (
+                          <li key={e.id} className="px-3 py-2 flex gap-2">
+                            <div className="flex-shrink-0 pt-0.5">
+                              {e.agentAvatarUrl ? (
+                                <img
+                                  src={e.agentAvatarUrl}
+                                  alt=""
+                                  className="w-5 h-5 rounded-full object-cover border border-stone-700"
+                                />
+                              ) : (
+                                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-stone-800 text-[9px] text-stone-300">
+                                  {displayName.slice(0, 2).toUpperCase()}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-stone-100 truncate">
+                                <span className="font-semibold">{displayName}</span>{" "}
+                                <span className="text-stone-200">{e.message}</span>
+                                {e.location ? (
+                                  <span className="text-stone-400"> — {e.location}</span>
+                                ) : null}
+                              </p>
+                              <p className="text-[10px] text-stone-500 mt-0.5">{timeLabel}</p>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </aside>
           </div>
         </div>
       </section>
@@ -633,32 +622,45 @@ export default function Home() {
   );
 }
 
+const FRAME_POLL_MS = 80;
+
 function LiveFrame({ agentId }: { agentId: string }) {
   const [src, setSrc] = useState<string | null>(null);
   const [err, setErr] = useState(false);
   const [failCount, setFailCount] = useState(0);
+  const nextRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setErr(false);
     setFailCount(0);
     let cancelled = false;
-    const tick = () => {
+    const requestNext = () => {
       if (cancelled) return;
       setSrc(`/api/observe/emulator/frame?agentId=${encodeURIComponent(agentId)}&t=${Date.now()}`);
     };
-    tick();
-    const interval = setInterval(tick, 40);
+    requestNext();
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      if (nextRef.current) clearTimeout(nextRef.current);
     };
   }, [agentId]);
 
   const handleError = () => {
     setFailCount((c) => c + 1);
     setErr(true);
+    nextRef.current = setTimeout(() => {
+      nextRef.current = null;
+      setSrc(`/api/observe/emulator/frame?agentId=${encodeURIComponent(agentId)}&t=${Date.now()}`);
+    }, 500);
   };
-  const handleLoad = () => setErr(false);
+  const handleLoad = () => {
+    setErr(false);
+    if (nextRef.current) clearTimeout(nextRef.current);
+    nextRef.current = setTimeout(() => {
+      nextRef.current = null;
+      setSrc(`/api/observe/emulator/frame?agentId=${encodeURIComponent(agentId)}&t=${Date.now()}`);
+    }, FRAME_POLL_MS);
+  };
 
   if (err && failCount >= 3) {
     return (

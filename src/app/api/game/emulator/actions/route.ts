@@ -38,14 +38,28 @@ export async function POST(req: Request) {
         ...(speed !== undefined && { speed }),
       }),
     });
-    const data = await res.json().catch(() => ({}));
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     if (!res.ok) {
       return NextResponse.json(
         { error: (data.detail as string) ?? "Emulator service error" },
         { status: res.status === 404 ? 404 : res.status }
       );
     }
-    return NextResponse.json(data);
+    // Include frame in response so RL agent can skip a separate get_frame round-trip (faster steps in prod).
+    let frameBase64: string | undefined;
+    try {
+      const frameRes = await fetch(`${EMULATOR_URL}/session/${agent.id}/frame`, {
+        cache: "no-store",
+        headers: { Accept: "image/png" },
+      });
+      if (frameRes.ok) {
+        const buf = Buffer.from(await frameRes.arrayBuffer());
+        frameBase64 = buf.toString("base64");
+      }
+    } catch {
+      // Frame fetch failed; client can fall back to GET /api/observe/emulator/frame
+    }
+    return NextResponse.json({ ...data, ...(frameBase64 && { frameBase64 }) });
   } catch {
     return NextResponse.json(
       { error: "Emulator service unreachable" },

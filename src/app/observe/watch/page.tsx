@@ -141,7 +141,7 @@ function WatchPageContent() {
     setLoading(false);
   }, [sessions, config]);
 
-  const regions = config?.regions ?? [];
+  const regions = useMemo(() => config?.regions ?? [], [config?.regions]);
   const citiesAndRoutes = useMemo(
     () => regions.filter((r) => r.type === "city" || r.type === "route" || r.type === "cave"),
     [regions]
