@@ -46,8 +46,8 @@ export async function GET(req: Request) {
         efficiency: Math.round(efficiency * 1000) / 1000,
       };
     })
-    // Only agents who have actually played (either steps or playtime recorded)
-    .filter((e) => e.totalSteps > 0 || e.totalPlaytimeSeconds > 0)
+    // Any agent with an AgentProfile can appear here. Some legacy profiles may still have
+    // zeroed stats (steps/playtime), but we still include them so the table is populated.
     .sort((a, b) => b.efficiency - a.efficiency)
     .slice(0, limit);
 
