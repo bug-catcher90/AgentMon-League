@@ -21,10 +21,12 @@ export async function POST(req: Request) {
     let pokedexSeen = 0;
     let badgesCount = 0;
     let maxLevel = 1;
+    let emulatorStateSnapshot: Record<string, unknown> | null = null;
     try {
       const stateRes = await fetch(`${EMULATOR_URL}/session/${encodeURIComponent(agent.id)}/state`, { cache: "no-store" });
       if (stateRes.ok) {
         const state = (await stateRes.json().catch(() => ({}))) as Record<string, unknown>;
+        emulatorStateSnapshot = state;
         sessionTimeSeconds = (state.sessionTimeSeconds as number) ?? 0;
         pokedexOwned = (state.pokedexOwned as number) ?? 0;
         pokedexSeen = (state.pokedexSeen as number) ?? 0;
@@ -98,6 +100,50 @@ export async function POST(req: Request) {
       badgesCount,
       playtimeSeconds: sessionTimeSeconds,
     }).catch(() => {});
+
+    // Persist last known game state to AgentState so profile page shows party/inventory when offline
+    if (emulatorStateSnapshot) {
+      const world = await prisma.world.findFirst();
+      if (world) {
+        const rawParty = (emulatorStateSnapshot.party as { speciesId?: string | number; level?: number }[]) ?? [];
+        const party = rawParty.map((entry) => ({
+          speciesId: typeof entry?.speciesId === "number" ? `species-${entry.speciesId}` : (entry?.speciesId ?? undefined),
+          level: entry?.level,
+        }));
+        const invRaw = emulatorStateSnapshot.inventory as { items?: { id?: string; quantity?: number }[] } | undefined;
+        const inventory = Array.isArray(invRaw?.items)
+          ? invRaw.items.map((item) => ({ itemId: item?.id ?? "unknown", count: typeof item?.quantity === "number" ? item.quantity : 1 }))
+          : [];
+        const badgeList = Array.from({ length: badgesCount }, (_, i) => `badge_${i + 1}`);
+        const mapName = (emulatorStateSnapshot.mapName as string) ?? "";
+        const regionId = mapName ? mapName.toLowerCase().replace(/\s+/g, "_") : null;
+        const x = typeof emulatorStateSnapshot.x === "number" ? emulatorStateSnapshot.x : 0;
+        const y = typeof emulatorStateSnapshot.y === "number" ? emulatorStateSnapshot.y : 0;
+
+        await prisma.agentState.upsert({
+          where: { agentId: agent.id },
+          create: {
+            agentId: agent.id,
+            worldId: world.id,
+            x,
+            y,
+            regionId,
+            party: party as object,
+            inventory: inventory as object,
+            badges: badgeList as object,
+            pokedex: { seen: [] as string[], owned: [] as string[] },
+          },
+          update: {
+            x,
+            y,
+            regionId,
+            party: party as object,
+            inventory: inventory as object,
+            badges: badgeList as object,
+          },
+        }).catch(() => {});
+      }
+    }
 
     return NextResponse.json({ ok: true });
   } catch {

@@ -27,12 +27,17 @@ export default function AgentProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [models, setModels] = useState<{ id: string; label: string; version: string | null; description: string | null; byteSize: number; createdAt: string }[]>([]);
   const [datasets, setDatasets] = useState<{ id: string; label: string; version: string | null; description: string | null; format: string | null; byteSize: number; createdAt: string }[]>([]);
+  const [avatarError, setAvatarError] = useState(false);
 
   useEffect(() => {
     fetch("/api/content/species")
       .then((r) => r.ok ? r.json() : [])
       .then(setSpeciesList);
   }, []);
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [id]);
 
   useEffect(() => {
     const fetchAgent = async () => {
@@ -101,7 +106,7 @@ export default function AgentProfilePage() {
     return `${h}:${pad(m)}:${pad(s)}`;
   }
 
-  const avatarSrc = data.avatarUrl || DEFAULT_AGENT_AVATAR;
+  const avatarSrc = (data.avatarUrl && !avatarError) ? data.avatarUrl : DEFAULT_AGENT_AVATAR;
   const pokedexOwned = hasSession && typeof s?.pokedexOwned === "number" ? s.pokedexOwned : (p?.pokedexOwnedCount ?? 0);
   const pokedexSeen = hasSession && typeof s?.pokedexSeen === "number" ? s.pokedexSeen : (p?.pokedexSeenCount ?? 0);
 
@@ -117,7 +122,12 @@ export default function AgentProfilePage() {
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
           <div className="flex items-center gap-4 shrink-0">
             {avatarSrc.startsWith("http") ? (
-              <img src={avatarSrc} alt="" className="w-20 h-20 rounded-full bg-stone-700 object-cover border border-stone-600" />
+              <img
+                src={avatarSrc}
+                alt=""
+                className="w-20 h-20 rounded-full bg-stone-700 object-cover border border-stone-600"
+                onError={() => setAvatarError(true)}
+              />
             ) : (
               <Image src={avatarSrc} alt="" width={80} height={80} className="rounded-full object-cover border border-stone-600 bg-stone-800" />
             )}
