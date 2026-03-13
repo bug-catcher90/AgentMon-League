@@ -105,10 +105,10 @@ function ChatPanel({ streamAgentId, displayName }: { streamAgentId: string; disp
     return () => clearInterval(t);
   }, [fetchMessages]);
 
-  // Scroll only the chat messages container, not the page
+  // Ensure we keep the scroll anchored at the top (latest messages at top, older below)
   useEffect(() => {
     const el = scrollContainerRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (el) el.scrollTop = 0;
   }, [messages]);
 
   const send = async () => {
@@ -144,7 +144,10 @@ function ChatPanel({ streamAgentId, displayName }: { streamAgentId: string; disp
         {messages.length === 0 ? (
           <p className="text-stone-500 text-sm py-4 text-center">No messages yet. Say hi!</p>
         ) : (
-          messages.map((m) => (
+          [...messages]
+            .slice()
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .map((m) => (
             <div key={m.id} className="text-sm">
               <span className="font-medium text-amber-400/90">{m.author}</span>
               <span className="text-stone-400 mx-1">:</span>
@@ -234,8 +237,8 @@ export default function WatchAgentPage() {
       <main className="flex-1 flex flex-col min-h-0 px-4 py-4 w-full">
         <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-6 w-full max-w-[1040px] items-stretch mx-auto">
           {/* Left: game stream */}
-          <div className="w-full lg:w-[640px] flex-shrink-0 flex flex-col">
-            <div className="rounded-xl border-2 border-stone-600 bg-stone-900 overflow-hidden shadow-xl">
+          <div className="w-full lg:flex-[0_0_640px] flex-shrink-0 flex flex-col min-h-0">
+            <div className="rounded-xl border-2 border-stone-600 bg-stone-900 overflow-hidden shadow-xl h-full">
               <div className="block overflow-hidden w-full aspect-[160/144]">
                 <LiveFrame agentId={agentId} />
               </div>
@@ -246,7 +249,7 @@ export default function WatchAgentPage() {
           </div>
 
           {/* Right: chat — same height as main (constant); messages scroll inside */}
-          <div className="w-full lg:w-[360px] flex-shrink-0 flex flex-col min-h-[400px] lg:min-h-0 mt-4 lg:mt-0 min-h-0">
+          <div className="w-full lg:w-[360px] flex flex-col min-h-0 mt-4 lg:mt-0 lg:flex-1">
             <ChatPanel streamAgentId={agentId} displayName={name} />
           </div>
         </div>
