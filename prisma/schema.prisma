@@ -17,7 +17,7 @@ model Agent {
 
   // Moltbook identity (optional)
   moltbookAgentId String?   @unique
-  handle          String?   // from Moltbook
+  handle          String?   @unique // stable external handle (e.g. Moltbook handle or custom id)
   displayName     String?
   avatarUrl       String?
 
