@@ -629,7 +629,7 @@ export default function Home() {
                   <tr key={e.agentId} className="border-b border-stone-700/80 hover:bg-stone-800/50">
                     <td className="px-3 py-2.5 text-stone-500 font-mono">{e.rank}</td>
                     <td className="px-3 py-2.5">
-                      <Link
+          <Link
                         href={`/observe/agents/${e.agentId}`}
                         className="flex items-center gap-2 text-stone-200 hover:text-amber-400 transition"
                       >
@@ -716,7 +716,7 @@ export default function Home() {
             </div>
           </a>
         </div>
-      </section>
+        </section>
 
     </div>
   );
