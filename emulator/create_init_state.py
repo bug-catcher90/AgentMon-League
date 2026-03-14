@@ -10,9 +10,14 @@ Output: init.state in the emulator directory (or path from EMULATOR_INIT_STATE_O
 Set EMULATOR_INIT_STATE=emulator/init.state (or full path) when starting the server.
 """
 
+import logging
 import os
 import sys
 from pathlib import Path
+
+# Silence PyBoy sound buffer overrun logs
+logging.getLogger("pyboy.core.sound").setLevel(logging.CRITICAL + 1)
+logging.getLogger("pyboy.core").setLevel(logging.CRITICAL + 1)
 
 # Reuse server's ROM path logic
 ROM_PATH = os.environ.get("EMULATOR_ROM_PATH", "PokemonRed.gb")
@@ -59,7 +64,10 @@ def main():
         out = Path(__file__).resolve().parent / out
 
     print("Loading ROM and advancing through intro to player's house...")
-    pyboy = PyBoy(str(rom), window="null")
+    try:
+        pyboy = PyBoy(str(rom), window="null", sound_emulated=False)
+    except TypeError:
+        pyboy = PyBoy(str(rom), window="null")
     try:
         # Phase 1: Title. Phase 2: Start to get to main menu. Phase 3: A (+ Start) to select
         # New Game and get through name entry and Oak dialogue. Target: map 37 (house) or 38 (bedroom).

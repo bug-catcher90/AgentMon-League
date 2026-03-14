@@ -12,10 +12,16 @@ Usage:
 """
 
 import io
+import logging
 import os
 import time
 from collections import deque
 from pathlib import Path
+
+# Silence PyBoy sound buffer overrun spam (hits Railway 500 logs/sec limit when headless)
+_log_sound = logging.getLogger("pyboy.core.sound")
+_log_sound.setLevel(logging.CRITICAL + 1)
+logging.getLogger("pyboy.core").setLevel(logging.CRITICAL + 1)
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import Response
@@ -175,11 +181,14 @@ def session_start(body: StartBody):
             ),
         )
 
-    # Headless: no display (PyBoy 2.x uses window='null')
+    # Headless: no display, sound off to avoid buffer overrun log spam
     try:
-        pyboy = PyBoy(str(rom), window="null")
+        pyboy = PyBoy(str(rom), window="null", sound_emulated=False)
     except TypeError:
-        pyboy = PyBoy(str(rom))
+        try:
+            pyboy = PyBoy(str(rom), window="null")
+        except TypeError:
+            pyboy = PyBoy(str(rom))
 
     init_state_used = None
     if body.initial_state_base64:

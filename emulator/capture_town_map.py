@@ -20,8 +20,13 @@ Requires: PyBoy, PIL
 """
 
 import argparse
+import logging
 import os
 import sys
+
+# Silence PyBoy sound buffer overrun logs
+logging.getLogger("pyboy.core.sound").setLevel(logging.CRITICAL + 1)
+logging.getLogger("pyboy.core").setLevel(logging.CRITICAL + 1)
 
 
 def main() -> None:
