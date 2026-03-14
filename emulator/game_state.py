@@ -598,6 +598,6 @@ def inject_starter(pyboy, starter: str) -> None:
             return
         mem = pyboy.memory
         if hasattr(mem, "__setitem__"):
-            mem[PARTY_MON1_SPECIES_ADDRESS] = species_id
+            mem[PARTY_MON1_STRUCT] = species_id
     except Exception:
         pass
