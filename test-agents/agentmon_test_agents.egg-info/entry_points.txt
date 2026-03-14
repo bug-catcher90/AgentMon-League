@@ -1,3 +1,4 @@
 [console_scripts]
 agentmongenesis = agentmongenesis_cli:main
 bugcatcher = bug_catcher.cli:main
+genesis-telegram = genesis_telegram_bot:main

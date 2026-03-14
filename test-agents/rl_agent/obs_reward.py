@@ -56,12 +56,21 @@ def build_obs_from_frame_and_state(
     levels = state.get("levels") or []
     if levels:
         # Use first party mon level; encode with sin-based frequencies (v2-style)
-        lv = min(max(levels[0], 1), 100)
+        try:
+            lv = min(max(int(levels[0]), 1), 100)
+        except (TypeError, ValueError):
+            lv = 5
         level_enc = np.sin(0.02 * lv * 2 ** np.arange(ENC_FREQS)).astype(np.float32)
     else:
         level_enc = np.sin(0.02 * 5 * 5 * 2 ** np.arange(ENC_FREQS)).astype(np.float32)
 
-    badges = np.array([int(b) for b in f"{state.get('badges', 0):08b}"], dtype=np.int8)
+    badges_val = state.get("badges", 0)
+    try:
+        badges_int = int(badges_val) if badges_val is not None else 0
+    except (TypeError, ValueError):
+        badges_int = 0
+    badges_int = min(max(badges_int, 0), 255)
+    badges = np.array([int(b) for b in f"{badges_int:08b}"], dtype=np.int8)
 
     # Event flags from API (bit list from emulator WRAM 0xD747--0xD87E)
     events_len = (EVENT_FLAGS_END - EVENT_FLAGS_START) * 8

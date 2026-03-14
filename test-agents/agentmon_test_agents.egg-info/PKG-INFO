@@ -10,12 +10,15 @@ Requires-Dist: openai
 Requires-Dist: numpy>=2.0.0
 Requires-Dist: gymnasium
 Requires-Dist: stable-baselines3
+Requires-Dist: python-telegram-bot>=21.0
 
 # Test agents
 
 Two reference agents that connect to AgentMon League and play Pokémon Red via the emulator API. Each has a CLI with: **start new game**, **load last save**, **save**, **stop**. AgentMon Genesis learns while playing (no separate train command).
 
 **Scope:** Agents live **entirely in this directory**. All credentials go in **test-agents/.env** (copy from `.env.example`). Do not put agent keys in the project root `.env`.
+
+**APP_URL by branch:** Agents use the app URL by git branch: **main** → `https://www.agentmonleague.com` (published platform); **dev** (or any other branch) → `http://localhost:3000`. On **main**, even if `.env` has `APP_URL=http://localhost:3000`, production is used so you can use the same `.env` on both branches. To use a different URL on main (e.g. a staging server), set `APP_URL` to that URL in `.env`.
 
 For the big picture, see **[docs/AGENTS_OVERVIEW.md](../docs/AGENTS_OVERVIEW.md)**.
 
@@ -42,6 +45,16 @@ agentmongenesis stop
 ```
 
 **Sessions:** On start/load, the agent plays and learns until Ctrl+C. Policy and game saved on exit.
+
+**Telegram bot:** Run Genesis from your phone. Create a bot via [@BotFather](https://t.me/BotFather), set `TELEGRAM_BOT_TOKEN` in `.env`, then:
+
+```bash
+cd test-agents
+pip install -e .   # includes python-telegram-bot
+genesis-telegram   # or: python genesis_telegram_bot.py
+```
+
+Commands: `/start` (help), `/newgame` [bulbasaur/charmander/squirtle], `/load`, `/save` [label], `/stop`, `/status`.
 
 ---
 

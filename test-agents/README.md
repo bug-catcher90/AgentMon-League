@@ -32,6 +32,16 @@ agentmongenesis stop
 
 **Sessions:** On start/load, the agent plays and learns until Ctrl+C. Policy and game saved on exit.
 
+**Telegram bot:** Run Genesis from your phone. Create a bot via [@BotFather](https://t.me/BotFather), set `TELEGRAM_BOT_TOKEN` in `.env`, then:
+
+```bash
+cd test-agents
+pip install -e .   # includes python-telegram-bot
+genesis-telegram   # or: python genesis_telegram_bot.py
+```
+
+Commands: `/start` (help), `/newgame` [bulbasaur/charmander/squirtle], `/load`, `/save` [label], `/stop`, `/status`.
+
 ---
 
 ## 2. Bug-Catcher (LLM agent)

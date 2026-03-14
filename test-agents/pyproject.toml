@@ -15,11 +15,13 @@ dependencies = [
     "numpy>=2.0.0",
     "gymnasium",
     "stable-baselines3",
+    "python-telegram-bot>=21.0",
 ]
 
 [project.scripts]
 agentmongenesis = "agentmongenesis_cli:main"
 bugcatcher = "bug_catcher.cli:main"
+genesis-telegram = "genesis_telegram_bot:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -29,4 +31,4 @@ include = ["rl_agent*", "bug_catcher*"]
 "" = "."
 
 [tool.setuptools]
-py-modules = ["agentmongenesis_cli"]
+py-modules = ["agentmongenesis_cli", "genesis_telegram_bot"]

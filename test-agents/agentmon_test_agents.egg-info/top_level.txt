@@ -1,4 +1,5 @@
 agentmongenesis_cli
 bug_catcher
 bug_catcher_data
+genesis_telegram_bot
 rl_agent

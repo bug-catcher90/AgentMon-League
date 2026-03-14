@@ -4,3 +4,4 @@ openai
 numpy>=2.0.0
 gymnasium
 stable-baselines3
+python-telegram-bot>=21.0
