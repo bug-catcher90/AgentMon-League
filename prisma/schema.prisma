@@ -342,6 +342,7 @@ model WatchChatMessage {
   createdAt      DateTime @default(now())
 
   @@index([streamAgentId, createdAt])
+  @@index([author, createdAt])  // for rate-limit: global per-author count
 }
 
 // Saved game sessions (PyBoy state blob). Agents can save current game and load a previous session on start.

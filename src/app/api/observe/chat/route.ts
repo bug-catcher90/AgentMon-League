@@ -32,10 +32,17 @@ export async function GET(req: Request) {
   });
 }
 
+/** Min gap between messages from the same author in the same stream (ms). */
+const STREAM_RATE_WINDOW_MS = 1000;
+/** Max messages from same author across all streams in this window. */
+const GLOBAL_RATE_LIMIT_COUNT = 5;
+const GLOBAL_RATE_WINDOW_MS = 10_000;
+
 /**
  * POST /api/observe/chat
  * Body: { streamAgentId: string, author: string, message: string }
  * Send a chat message (no auth; author is display name).
+ * Rate limited: 1 msg/sec per (stream, author), and 5 msg/10s per author globally.
  */
 export async function POST(req: Request) {
   try {
@@ -49,6 +56,40 @@ export async function POST(req: Request) {
     }
     if (!message) {
       return NextResponse.json({ error: "message required" }, { status: 400 });
+    }
+
+    const now = new Date();
+    const streamWindowStart = new Date(now.getTime() - STREAM_RATE_WINDOW_MS);
+    const globalWindowStart = new Date(now.getTime() - GLOBAL_RATE_WINDOW_MS);
+
+    // Same author, same stream: at most 1 message per second
+    const recentInStream = await prisma.watchChatMessage.findFirst({
+      where: {
+        streamAgentId,
+        author,
+        createdAt: { gte: streamWindowStart },
+      },
+      select: { id: true },
+    });
+    if (recentInStream) {
+      return NextResponse.json(
+        { error: "Slow down — one message per second in this stream." },
+        { status: 429, headers: { "Retry-After": "1" } }
+      );
+    }
+
+    // Same author, any stream: cap at 5 messages per 10 seconds (stops cross-stream spam)
+    const recentGlobalCount = await prisma.watchChatMessage.count({
+      where: {
+        author,
+        createdAt: { gte: globalWindowStart },
+      },
+    });
+    if (recentGlobalCount >= GLOBAL_RATE_LIMIT_COUNT) {
+      return NextResponse.json(
+        { error: "Slow down — too many messages across streams. Try again in a few seconds." },
+        { status: 429, headers: { "Retry-After": "10" } }
+      );
     }
 
     const created = await prisma.watchChatMessage.create({
