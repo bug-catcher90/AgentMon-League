@@ -3,9 +3,12 @@ Pokémon Red RAM addresses for game state (from datacrystal.romhacking & Pokemon
 PyBoy 2.x: read via pyboy.memory[addr].
 """
 
-# Player position (overworld tile)
-X_POS_ADDRESS = 0xD362
-Y_POS_ADDRESS = 0xD361
+# Player position (overworld tile).
+# Empirically: in PyBoy/this ROM, D362 changes on north/south movement, D361 on east/west.
+# We report (x, y) so that "up" decreases y and "left" decreases x; so x=D361, y=D362.
+# (Data Crystal documents D361=Y, D362=X; observed movement matches the opposite.)
+X_POS_ADDRESS = 0xD361
+Y_POS_ADDRESS = 0xD362
 MAP_N_ADDRESS = 0xD35E
 
 # Badges (1 byte, bits 0-7 = 8 badges)
