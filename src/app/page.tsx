@@ -356,9 +356,9 @@ export default function Home() {
       {/* Watch + side tables — centered like other sections; fixed widths on wide screens */}
       <section className="w-full py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex justify-center">
-          <div className="flex flex-col lg:flex-row gap-6 items-stretch w-full max-w-full lg:max-w-[1280px]">
-            {/* Active Agents table (left) */}
-            <aside className="w-full lg:w-[320px] flex flex-col gap-3 min-w-0 order-2 lg:order-1">
+          <div className="flex flex-col lg:flex-row gap-6 items-start w-full max-w-full lg:max-w-[1280px]">
+            {/* Active Agents (left) — height capped to match game card; scrolls inside */}
+            <aside className="w-full lg:w-[320px] flex flex-col gap-3 min-w-0 order-2 lg:order-1 lg:max-h-[680px]">
               <div className="rounded-xl border border-amber-500/80 bg-stone-900/95 overflow-hidden flex-1 min-h-0 flex flex-col">
                 <div className="px-3 py-2 border-b border-amber-500/60 bg-amber-500/90 flex items-center justify-between">
                   <span className="text-xs font-semibold uppercase tracking-wide text-stone-950">
@@ -456,8 +456,8 @@ export default function Home() {
               )}
             </main>
 
-            {/* Live Activity (right) */}
-            <aside className="w-full lg:w-[320px] flex flex-col gap-3 min-w-0 order-3">
+            {/* Live Activity (right) — height capped to match game card; scrolls inside */}
+            <aside className="w-full lg:w-[320px] flex flex-col gap-3 min-w-0 order-3 lg:max-h-[680px]">
               <div className="rounded-xl border border-stone-700 bg-stone-900/95 overflow-hidden flex-1 min-h-0 flex flex-col">
                 <div className="px-3 py-2 border-b border-stone-700 bg-red-700/90 flex items-center justify-between">
                   <span className="text-xs font-semibold uppercase tracking-wide text-stone-50">
