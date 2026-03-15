@@ -340,6 +340,7 @@ model WatchChatMessage {
   streamAgentId  String   // agent whose stream this chat is for
   author         String   // display name (agent name or viewer nickname)
   message        String   @db.Text
+  clientIp       String?  // for duplicate/session check (same message + same IP in 60s = block)
   createdAt      DateTime @default(now())
 
   @@index([streamAgentId, createdAt])

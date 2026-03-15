@@ -37,14 +37,30 @@ const STREAM_RATE_WINDOW_MS = 2000; // 1 message per 2 seconds per stream
 /** Max messages from same author across all streams in this window. */
 const GLOBAL_RATE_LIMIT_COUNT = 5;
 const GLOBAL_RATE_WINDOW_MS = 10_000;
-/** Same author+stream: reject duplicate message within this window (ms). */
-const DUPLICATE_MESSAGE_WINDOW_MS = 90_000; // 90 seconds
+/** Same message by same user or same IP (session) in this stream within 60s → reject. */
+const DUPLICATE_MESSAGE_WINDOW_MS = 60_000;
+
+function getClientIp(req: Request): string | null {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) {
+    const first = forwarded.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  const real = req.headers.get("x-real-ip");
+  if (real) return real.trim();
+  return null;
+}
+
+/** Normalize for duplicate check: trim, collapse whitespace, lowercase. */
+function normalizeMessageForDedup(text: string): string {
+  return text.trim().replace(/\s+/g, " ").toLowerCase();
+}
 
 /**
  * POST /api/observe/chat
  * Body: { streamAgentId: string, author: string, message: string }
  * Send a chat message (no auth; author is display name).
- * Rate limited: 1 msg/2s per stream, 5 msg/10s global, no same message within 90s.
+ * Rate limited + duplicate blocked: same text by same user or same IP in 60s = reject.
  */
 export async function POST(req: Request) {
   try {
@@ -52,6 +68,7 @@ export async function POST(req: Request) {
     const streamAgentId = typeof body.streamAgentId === "string" ? body.streamAgentId.trim() : "";
     const author = typeof body.author === "string" ? body.author.trim().slice(0, 64) || "Anonymous" : "Anonymous";
     const message = typeof body.message === "string" ? body.message.trim().slice(0, 500) : "";
+    const clientIp = getClientIp(req);
 
     if (!streamAgentId) {
       return NextResponse.json({ error: "streamAgentId required" }, { status: 400 });
@@ -64,8 +81,32 @@ export async function POST(req: Request) {
     const streamWindowStart = new Date(now.getTime() - STREAM_RATE_WINDOW_MS);
     const globalWindowStart = new Date(now.getTime() - GLOBAL_RATE_WINDOW_MS);
     const duplicateWindowStart = new Date(now.getTime() - DUPLICATE_MESSAGE_WINDOW_MS);
+    const normalizedMessage = normalizeMessageForDedup(message);
 
-    // Same author, same stream: at most 1 message per 2 seconds
+    // 1) Duplicate check first: same message in last 60s by same author OR same IP (stops scripts that change name)
+    const recentInStreamForDedup = await prisma.watchChatMessage.findMany({
+      where: {
+        streamAgentId,
+        createdAt: { gte: duplicateWindowStart },
+        OR: [
+          { author },
+          ...(clientIp ? [{ clientIp }] : []),
+        ],
+      },
+      select: { message: true },
+      take: 50,
+    });
+    const isDuplicate = recentInStreamForDedup.some(
+      (m) => normalizeMessageForDedup(m.message) === normalizedMessage
+    );
+    if (isDuplicate) {
+      return NextResponse.json(
+        { error: "That message was already sent in the last 60 seconds (by you or this session). Say something different or wait." },
+        { status: 429, headers: { "Retry-After": "60" } }
+      );
+    }
+
+    // 2) Same author, same stream: at most 1 message per 2 seconds
     const recentInStream = await prisma.watchChatMessage.findFirst({
       where: {
         streamAgentId,
@@ -81,24 +122,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Same author + same stream + same message in last 90s → reject (stops copy-paste floods)
-    const duplicateRecent = await prisma.watchChatMessage.findFirst({
-      where: {
-        streamAgentId,
-        author,
-        message,
-        createdAt: { gte: duplicateWindowStart },
-      },
-      select: { id: true },
-    });
-    if (duplicateRecent) {
-      return NextResponse.json(
-        { error: "You already sent that message recently. Say something different or wait a bit." },
-        { status: 429, headers: { "Retry-After": "60" } }
-      );
-    }
-
-    // Same author, any stream: cap at 5 messages per 10 seconds (stops cross-stream spam)
+    // 3) Same author, any stream: cap at 5 messages per 10 seconds
     const recentGlobalCount = await prisma.watchChatMessage.count({
       where: {
         author,
@@ -113,7 +137,7 @@ export async function POST(req: Request) {
     }
 
     const created = await prisma.watchChatMessage.create({
-      data: { streamAgentId, author, message },
+      data: { streamAgentId, author, message, clientIp },
     });
 
     return NextResponse.json({
