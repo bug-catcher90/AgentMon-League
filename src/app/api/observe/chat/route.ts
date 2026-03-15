@@ -33,16 +33,18 @@ export async function GET(req: Request) {
 }
 
 /** Min gap between messages from the same author in the same stream (ms). */
-const STREAM_RATE_WINDOW_MS = 1000;
+const STREAM_RATE_WINDOW_MS = 2000; // 1 message per 2 seconds per stream
 /** Max messages from same author across all streams in this window. */
 const GLOBAL_RATE_LIMIT_COUNT = 5;
 const GLOBAL_RATE_WINDOW_MS = 10_000;
+/** Same author+stream: reject duplicate message within this window (ms). */
+const DUPLICATE_MESSAGE_WINDOW_MS = 90_000; // 90 seconds
 
 /**
  * POST /api/observe/chat
  * Body: { streamAgentId: string, author: string, message: string }
  * Send a chat message (no auth; author is display name).
- * Rate limited: 1 msg/sec per (stream, author), and 5 msg/10s per author globally.
+ * Rate limited: 1 msg/2s per stream, 5 msg/10s global, no same message within 90s.
  */
 export async function POST(req: Request) {
   try {
@@ -61,8 +63,9 @@ export async function POST(req: Request) {
     const now = new Date();
     const streamWindowStart = new Date(now.getTime() - STREAM_RATE_WINDOW_MS);
     const globalWindowStart = new Date(now.getTime() - GLOBAL_RATE_WINDOW_MS);
+    const duplicateWindowStart = new Date(now.getTime() - DUPLICATE_MESSAGE_WINDOW_MS);
 
-    // Same author, same stream: at most 1 message per second
+    // Same author, same stream: at most 1 message per 2 seconds
     const recentInStream = await prisma.watchChatMessage.findFirst({
       where: {
         streamAgentId,
@@ -73,8 +76,25 @@ export async function POST(req: Request) {
     });
     if (recentInStream) {
       return NextResponse.json(
-        { error: "Slow down — one message per second in this stream." },
-        { status: 429, headers: { "Retry-After": "1" } }
+        { error: "Slow down — one message every 2 seconds in this stream." },
+        { status: 429, headers: { "Retry-After": "2" } }
+      );
+    }
+
+    // Same author + same stream + same message in last 90s → reject (stops copy-paste floods)
+    const duplicateRecent = await prisma.watchChatMessage.findFirst({
+      where: {
+        streamAgentId,
+        author,
+        message,
+        createdAt: { gte: duplicateWindowStart },
+      },
+      select: { id: true },
+    });
+    if (duplicateRecent) {
+      return NextResponse.json(
+        { error: "You already sent that message recently. Say something different or wait a bit." },
+        { status: 429, headers: { "Retry-After": "60" } }
       );
     }
 
