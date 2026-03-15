@@ -64,10 +64,14 @@ export async function POST(req: Request) {
 
     // Best-effort: log live activity + increment step counter.
     void Promise.allSettled([
-      logLiveActivityFromStep(agent.id, {
-        state: (data.state ?? undefined) as { mapName?: string } | undefined,
-        feedback: (data.feedback ?? undefined) as { effects?: string[]; message?: string } | undefined,
-      }),
+      logLiveActivityFromStep(
+        agent.id,
+        {
+          state: (data.state ?? undefined) as { mapName?: string } | undefined,
+          feedback: (data.feedback ?? undefined) as { effects?: string[]; message?: string } | undefined,
+        },
+        { agentDisplayName: agent.displayName ?? undefined }
+      ),
       prisma.agentProfile.updateMany({
         where: { agentId: agent.id },
         data: { totalSteps: { increment: actions.length } },

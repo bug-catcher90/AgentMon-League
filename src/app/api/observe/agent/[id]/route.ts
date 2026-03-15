@@ -121,6 +121,22 @@ export async function GET(
   const sessionPokedexOwned = typeof emulatorState?.pokedexOwned === "number" ? emulatorState.pokedexOwned : undefined;
   const sessionPokedexSeen = typeof emulatorState?.pokedexSeen === "number" ? emulatorState.pokedexSeen : undefined;
 
+  // When no active session, use pokedex from last saved session (SessionSummary) so counts match real last play
+  let lastSessionPokedex: { pokedexOwned: number; pokedexSeen: number } | null = null;
+  if (emulatorState == null) {
+    const lastSummary = await prisma.sessionSummary.findFirst({
+      where: { agentId: id },
+      orderBy: { endedAt: "desc" },
+      select: { pokedexOwned: true, pokedexSeen: true },
+    });
+    if (lastSummary) {
+      lastSessionPokedex = {
+        pokedexOwned: lastSummary.pokedexOwned,
+        pokedexSeen: lastSummary.pokedexSeen,
+      };
+    }
+  }
+
   const hasSessionState = emulatorState != null;
   const state = hasSessionState
     ? {
@@ -148,6 +164,9 @@ export async function GET(
         }
       : null;
 
+  const profilePokedexOwned = lastSessionPokedex?.pokedexOwned ?? agent.profile?.pokedexOwnedCount ?? 0;
+  const profilePokedexSeen = lastSessionPokedex?.pokedexSeen ?? agent.profile?.pokedexSeenCount ?? 0;
+
   return NextResponse.json({
     id: agent.id,
     displayName: agent.displayName,
@@ -158,8 +177,8 @@ export async function GET(
           name: agent.profile.name,
           level: agent.profile.level,
           badges: agent.profile.badges,
-          pokedexSeenCount: agent.profile.pokedexSeenCount,
-          pokedexOwnedCount: agent.profile.pokedexOwnedCount,
+          pokedexSeenCount: profilePokedexSeen,
+          pokedexOwnedCount: profilePokedexOwned,
           wins: agent.profile.wins,
           losses: agent.profile.losses,
           gymWins: agent.profile.gymWins,

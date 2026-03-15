@@ -73,10 +73,14 @@ export async function POST(req: Request) {
     // Do not await these before returning to keep step latency low.
     void (async () => {
       await Promise.allSettled([
-        logLiveActivityFromStep(agent.id, {
-          state: (data.state ?? undefined) as { mapName?: string } | undefined,
-          feedback: (data.feedback ?? undefined) as { effects?: string[]; message?: string } | undefined,
-        }),
+        logLiveActivityFromStep(
+          agent.id,
+          {
+            state: (data.state ?? undefined) as { mapName?: string } | undefined,
+            feedback: (data.feedback ?? undefined) as { effects?: string[]; message?: string } | undefined,
+          },
+          { agentDisplayName: agent.displayName ?? undefined }
+        ),
         prisma.agentProfile.updateMany({
           where: { agentId: agent.id },
           data: { totalSteps: { increment: 1 } },

@@ -61,12 +61,33 @@ export async function GET(req: Request) {
     prisma.agent.count(),
   ]);
 
+  // For offline agents, use pokedex from last saved session (SessionSummary) so counts match real last play
+  const agentIds = agents.map((a) => a.id);
+  const summaries = await prisma.sessionSummary.findMany({
+    where: { agentId: { in: agentIds } },
+    orderBy: { endedAt: "desc" },
+    select: { agentId: true, pokedexOwned: true, pokedexSeen: true },
+  });
+  const lastSessionByAgent: Record<string, { pokedexOwned: number; pokedexSeen: number }> = {};
+  for (const row of summaries) {
+    if (lastSessionByAgent[row.agentId] == null) {
+      lastSessionByAgent[row.agentId] = { pokedexOwned: row.pokedexOwned, pokedexSeen: row.pokedexSeen };
+    }
+  }
+
   return NextResponse.json({
     agents: agents.map((a) => {
       const session = sessionMap[a.id];
       const isActive = !!session;
-      const pokedexOwned = isActive && session?.pokedexOwned !== undefined ? session.pokedexOwned : (a.profile?.pokedexOwnedCount ?? 0);
-      const pokedexSeen = isActive && session?.pokedexSeen !== undefined ? session.pokedexSeen : (a.profile?.pokedexSeenCount ?? 0);
+      const lastSession = lastSessionByAgent[a.id];
+      const pokedexOwned =
+        isActive && session?.pokedexOwned !== undefined
+          ? session.pokedexOwned
+          : (lastSession?.pokedexOwned ?? a.profile?.pokedexOwnedCount ?? 0);
+      const pokedexSeen =
+        isActive && session?.pokedexSeen !== undefined
+          ? session.pokedexSeen
+          : (lastSession?.pokedexSeen ?? a.profile?.pokedexSeenCount ?? 0);
       return {
         id: a.id,
         displayName: a.displayName ?? a.id.slice(0, 8),

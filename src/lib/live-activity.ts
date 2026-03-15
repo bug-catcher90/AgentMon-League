@@ -31,7 +31,7 @@ type LiveActivityDraft = {
   location?: string | null;
 };
 
-function deriveEventsFromStep(payload: StepPayload): LiveActivityDraft[] {
+function deriveEventsFromStep(payload: StepPayload, agentDisplayName: string): LiveActivityDraft[] {
   const feedback = payload.feedback;
   const effects = feedback?.effects ?? [];
   if (!effects.length) return [];
@@ -39,12 +39,13 @@ function deriveEventsFromStep(payload: StepPayload): LiveActivityDraft[] {
   const location = payload.state?.mapName ?? null;
   const tags = new Set(effects);
   const events: LiveActivityDraft[] = [];
+  const who = agentDisplayName || "An agent";
 
   // Wild encounter started
   if (tags.has("wild_pokemon_appeared") || tags.has("wild_encounter")) {
     events.push({
       kind: "wild_encounter_started",
-      message: "A wild Pokémon appeared!",
+      message: `${who} encountered a wild Pokémon`,
       location,
     });
   }
@@ -53,7 +54,7 @@ function deriveEventsFromStep(payload: StepPayload): LiveActivityDraft[] {
   if (tags.has("trainer_battle") || tags.has("trainer_challenged_you")) {
     events.push({
       kind: "trainer_battle_started",
-      message: "A trainer wants to battle!",
+      message: `${who} was challenged by a trainer`,
       location,
     });
   }
@@ -62,7 +63,7 @@ function deriveEventsFromStep(payload: StepPayload): LiveActivityDraft[] {
   if (tags.has("caught_pokemon")) {
     events.push({
       kind: "pokemon_caught",
-      message: "Caught a Pokémon!",
+      message: `${who} caught a Pokémon`,
       location,
     });
   }
@@ -71,7 +72,7 @@ function deriveEventsFromStep(payload: StepPayload): LiveActivityDraft[] {
   if (tags.has("pokemon_evolved")) {
     events.push({
       kind: "pokemon_evolved",
-      message: "A Pokémon evolved!",
+      message: `${who}'s Pokémon evolved`,
       location,
     });
   }
@@ -80,7 +81,7 @@ function deriveEventsFromStep(payload: StepPayload): LiveActivityDraft[] {
   if (tags.has("won_trainer_battle")) {
     events.push({
       kind: "trainer_battle_won",
-      message: "Won the trainer battle!",
+      message: `${who} won the trainer battle`,
       location,
     });
   }
@@ -89,7 +90,7 @@ function deriveEventsFromStep(payload: StepPayload): LiveActivityDraft[] {
   if (tags.has("earned_badge")) {
     events.push({
       kind: "badge_earned",
-      message: "Earned a gym badge!",
+      message: `${who} earned a gym badge`,
       location,
     });
   }
@@ -98,7 +99,7 @@ function deriveEventsFromStep(payload: StepPayload): LiveActivityDraft[] {
   if (tags.has("trainer_battle_lost")) {
     events.push({
       kind: "trainer_battle_lost",
-      message: "Lost the trainer battle",
+      message: `${who} lost the trainer battle`,
       location,
     });
   }
@@ -107,7 +108,7 @@ function deriveEventsFromStep(payload: StepPayload): LiveActivityDraft[] {
   if (tags.has("fled_from_battle")) {
     events.push({
       kind: "fled_from_battle",
-      message: "Fled from the wild Pokémon",
+      message: `${who} fled from the wild Pokémon`,
       location,
     });
   }
@@ -122,7 +123,7 @@ function deriveEventsFromStep(payload: StepPayload): LiveActivityDraft[] {
   ) {
     events.push({
       kind: "battle_over",
-      message: "Left a battle",
+      message: `${who} left a battle`,
       location,
     });
   }
@@ -131,19 +132,19 @@ function deriveEventsFromStep(payload: StepPayload): LiveActivityDraft[] {
   if (tags.has("party_grew") || tags.has("received_pokemon")) {
     events.push({
       kind: "party_grew",
-      message: "Received a new Pokémon",
+      message: `${who} received a new Pokémon`,
       location,
     });
   }
 
   // Map / location change (cities, routes, buildings)
-  const enteredTag = effects.find((e) => e.startsWith("entered_"));
+  const enteredTag = effects.find((e) => typeof e === "string" && e.startsWith("entered_"));
   if (enteredTag) {
-    const raw = enteredTag.replace(/^entered_/, "");
+    const raw = (enteredTag as string).replace(/^entered_/, "");
     const niceName = raw.replace(/_/g, " ");
     events.push({
       kind: "location_entered",
-      message: `Entered ${niceName}`,
+      message: `${who} entered ${niceName}`,
       location: niceName,
     });
   }
@@ -151,8 +152,15 @@ function deriveEventsFromStep(payload: StepPayload): LiveActivityDraft[] {
   return events;
 }
 
-export async function logLiveActivityFromStep(agentId: string, payload: StepPayload): Promise<void> {
-  const events = deriveEventsFromStep(payload);
+export type LogLiveActivityOptions = { agentDisplayName?: string | null };
+
+export async function logLiveActivityFromStep(
+  agentId: string,
+  payload: StepPayload,
+  options?: LogLiveActivityOptions
+): Promise<void> {
+  const agentDisplayName = options?.agentDisplayName?.trim() || "An agent";
+  const events = deriveEventsFromStep(payload, agentDisplayName);
   if (!events.length) return;
 
   try {
