@@ -407,10 +407,10 @@ export default function Home() {
               </div>
             </aside>
 
-            {/* Game area (center) */}
-            <main className="flex-shrink-0 w-full lg:w-[640px] order-1 lg:order-2">
+            {/* Game area (center) — same height as individual watch: content-sized, no stretch */}
+            <main className="flex-shrink-0 w-full lg:w-[640px] order-1 lg:order-2 self-start">
               {selectedAgentId && sessionSet.has(selectedAgentId) ? (
-                <div className="rounded-xl border-2 border-stone-600 bg-stone-900 overflow-hidden h-full">
+                <div className="rounded-xl border-2 border-stone-600 bg-stone-900 overflow-hidden">
                   <div className="p-3 border-b border-stone-700 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                       <span className="text-sm font-medium text-amber-400">
@@ -440,7 +440,7 @@ export default function Home() {
                   </div>
                 </div>
               ) : (
-                <div className="rounded-xl border-2 border-stone-600 bg-stone-900 overflow-hidden h-full">
+                <div className="rounded-xl border-2 border-stone-600 bg-stone-900 overflow-hidden">
                   <div className="p-3 border-b border-stone-700">
                     <span className="text-sm font-medium text-amber-400">No session</span>
                   </div>
