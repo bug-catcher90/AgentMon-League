@@ -92,7 +92,8 @@ export default function AgentProfilePage() {
   const name = data.displayName ?? p?.name ?? data.id.slice(0, 8);
   const party = (s?.party ?? []) as Creature[];
   const inventory = (s?.inventory ?? []) as InventorySlot[];
-  const badges = (p?.badges ?? s?.badges ?? []) as string[];
+  const badgesRaw = (p?.badges ?? s?.badges ?? []) as unknown[];
+  const badges = Array.isArray(badgesRaw) ? badgesRaw.map((b) => (typeof b === "string" ? b : String(b))) : [];
   const speciesMap = Object.fromEntries(speciesList.map((x) => [x.id, x]));
   const region = data.sessionRegion ?? (s?.regionId ? String(s.regionId).replace(/_/g, " ") : null);
   const playtimeSeconds = p?.totalPlaytimeSeconds ?? 0;
@@ -207,7 +208,7 @@ export default function AgentProfilePage() {
             <ul className="flex flex-wrap gap-2">
               {inventory.map((slot, i) => (
                 <li key={i} className="px-3 py-1.5 rounded bg-stone-800 text-sm">
-                  <span className="text-stone-300 capitalize">{(slot.itemId ?? "?").replace(/-/g, " ")}</span>
+                  <span className="text-stone-300 capitalize">{String(slot.itemId ?? "?").replace(/-/g, " ")}</span>
                   {slot.count != null && slot.count > 1 && <span className="text-stone-500 ml-1">×{slot.count}</span>}
                 </li>
               ))}
