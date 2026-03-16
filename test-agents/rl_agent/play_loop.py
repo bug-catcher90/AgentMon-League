@@ -109,13 +109,19 @@ def run_play_with_learning(
         )
     ])
     load_path = load_latest_path()
+    model = None
     if load_path:
-        # When loading an existing checkpoint, keep PPO hyperparameters stored in the model.
-        model = PPO.load(load_path, env=env, custom_objects={"lr_schedule": 0, "clip_range": 0})
-    else:
+        try:
+            # When loading an existing checkpoint, keep PPO hyperparameters stored in the model.
+            model = PPO.load(load_path, env=env, custom_objects={"lr_schedule": 0, "clip_range": 0})
+        except ValueError as e:
+            if "Observation spaces do not match" in str(e) or "observation_space" in str(e).lower():
+                print("Checkpoint from older version (different observation space); starting with a new policy.")
+                model = None
+            else:
+                raise
+    if model is None:
         # New PPO model tuned for long‑horizon, sparse-ish rewards of Pokémon Red.
-        # Larger rollout size and batch, slightly higher epochs, and a more conservative
-        # clip range help with stability as the agent explores deeper into the game.
         model = PPO(
             "MultiInputPolicy",
             env,
