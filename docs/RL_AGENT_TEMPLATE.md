@@ -61,12 +61,22 @@ agentmongenesis stop
 | `RL_SAVE_EVERY_STEPS` | `5000` | Save checkpoint every N steps during play. |
 | `RL_PLAY_MAX_STEPS` | `0` | Max steps during play (0 = no limit; stop with Ctrl+C). |
 | `RL_PLAY_SAVE_EVERY_STEPS` | `1000` | Auto-save game to platform every N steps during play (0 = disabled). |
-| `RL_REWARD_BADGE` | `20.0` | Reward weight per badge. |
-| `RL_REWARD_PARTY` | `5.0` | Per party member. |
-| `RL_REWARD_POKEDEX_OWNED` | `2.0` | Per owned species. |
-| `RL_REWARD_POKEDEX_SEEN` | `0.5` | Per seen species. |
-| `RL_REWARD_MAP` | `0.01` | Per map id. |
-| `RL_REWARD_STEP_PENALTY` | `-0.01` | Per step (efficiency). |
+| `RL_REWARD_BADGE` | `100.0` | Reward per badge (e.g. beat Brock). |
+| `RL_REWARD_PARTY` | `10.0` | Per party member. |
+| `RL_REWARD_POKEDEX_OWNED` | `5.0` | Per owned species. |
+| `RL_REWARD_POKEDEX_SEEN` | `1.0` | Per seen species. |
+| `RL_REWARD_MAP` | `0.0` | Per map id (0 = unused). |
+| `RL_REWARD_STEP_PENALTY` | `-0.005` | Per step (efficiency). |
+| `RL_REWARD_BEAT_POKEMON` | `2.0` | Per battle won (battle ended, party alive). |
+| `RL_REWARD_LEVEL_UP` | `3.0` | Per level gained (party). |
+| `RL_REWARD_VISIT_POKECENTER` | `4.0` | Enter Viridian or Pewter Poké Center. |
+| `RL_REWARD_VISIT_MART` | `2.0` | Enter Viridian Mart. |
+| `RL_REWARD_BUY_POKEBALLS` | `1.0` | Per Poké Ball bought (inventory item id from ROM). |
+| `RL_REWARD_FIRST_THREE_CATCHES` | `8.0` | One-time when party or owned species reaches 3. |
+
+### Stage-1 (Pallet to Brock) and ROM data
+
+The default reward is tuned for **stage-1**: Pallet Town → Route 1 → Viridian City → visit Poké Center (heal) and Mart (buy Poké Balls) → Route 2 / Viridian Forest (catch at least 3 Pokémon) → Pewter City → visit Poké Center (heal) → Pewter Gym (beat Brock). Map IDs and item IDs (e.g. Poké Ball) **must match the emulator** (`emulator/game_state.py`: `MAP_NAMES`, `ITEM_ID_POKEBALL`). The RL agent imports these when the emulator is on the path so ROM data is the single source of truth.
 
 ## Customizing the template
 

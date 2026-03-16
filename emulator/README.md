@@ -70,6 +70,15 @@ uvicorn server:app --host 0.0.0.0 --port 8765
 
 **Important:** Set `EMULATOR_ROM_PATH` only to the real path of your ROM file. If unset, the server looks for `PokemonRed.gb` in `emulator/rom/`, `emulator/`, and the project root.
 
+### ROM IDs (map and item)
+
+Map IDs and item IDs used by the app and RL agent are defined in **`emulator/game_state.py`** so they match the ROM you run:
+
+- **Map ID**: byte at WRAM address `0xD35E` (MAP_N_ADDRESS) when the player is in a location. `MAP_NAMES` and `PHASE1_MAP_BONUSES` use these numeric IDs. They must match **your** ROM (e.g. `emulator/rom/PokemonRed.gb`).
+- **Item ID**: inventory at `0xD31E+` stores (item_id, quantity). Poké Ball = 4 (`ITEM_ID_POKEBALL`). See Bulbapedia / pret for the full list.
+
+To verify map IDs for your ROM, run the emulator, move the player to a location, and call `GET /api/game/emulator/state` (or use `game_state.get_game_state(pyboy)` in a script); the `mapId` value is what the ROM reports. If a location shows a different id, add or correct it in `game_state.MAP_NAMES` and, for stage-1, in `PHASE1_MAP_BONUSES`.
+
 The Next.js app expects the emulator at `http://127.0.0.1:8765` by default. Override with `EMULATOR_URL` in `.env` (e.g. `EMULATOR_URL=http://localhost:8765`).
 
 ## Production (Railway) — ROM image

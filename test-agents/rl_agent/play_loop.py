@@ -110,16 +110,24 @@ def run_play_with_learning(
     ])
     load_path = load_latest_path()
     if load_path:
+        # When loading an existing checkpoint, keep PPO hyperparameters stored in the model.
         model = PPO.load(load_path, env=env, custom_objects={"lr_schedule": 0, "clip_range": 0})
     else:
+        # New PPO model tuned for long‑horizon, sparse-ish rewards of Pokémon Red.
+        # Larger rollout size and batch, slightly higher epochs, and a more conservative
+        # clip range help with stability as the agent explores deeper into the game.
         model = PPO(
             "MultiInputPolicy",
             env,
             verbose=1,
-            n_steps=128,
-            batch_size=64,
-            n_epochs=3,
+            n_steps=2048,
+            batch_size=256,
+            n_epochs=10,
             learning_rate=3e-4,
+            gamma=0.999,
+            gae_lambda=0.95,
+            clip_range=0.1,
+            ent_coef=0.01,
         )
 
     callback = _PlayLearnCallback(

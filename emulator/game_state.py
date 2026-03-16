@@ -144,7 +144,9 @@ _GEN1_CHAR["'"] = 0xE0
 _GEN1_CHAR["("] = 0x9A
 _GEN1_CHAR[")"] = 0x9B
 
-# Map id -> human-readable name (subset of PokemonRedExperiments get_map_location)
+# Map id -> human-readable name. Map IDs are the byte at WRAM MAP_N_ADDRESS (0xD35E)
+# when the player is in that location. Values must match the ROM (e.g. emulator/rom/PokemonRed.gb).
+# Source: datacrystal.romhacking.net, PokemonRedExperiments; verify with get_game_state() in each location.
 MAP_NAMES = {
     0: "Pallet Town",
     1: "Viridian City",
@@ -163,9 +165,28 @@ MAP_NAMES = {
     42: "Poké Mart (Viridian)",
     51: "Viridian Forest",
     54: "Pewter Gym",
+    55: "Pokémon Center (Pewter)",
     59: "Mt. Moon entrance",
     60: "Mt. Moon",
     68: "Pokémon Center (Route 4)",
+}
+
+# Gen 1 item index: WRAM inventory at D31E+ stores (item_id, quantity). Poké Ball = 4 (Bulbapedia / pret).
+ITEM_ID_POKEBALL = 4
+
+# Stage-1 (Pallet → Brock) RL reward: map_id -> default bonus. Only IDs present in MAP_NAMES.
+# Keys are ROM map IDs (0xD35E). RL agent imports this and overrides 41/55 with REWARD_VISIT_POKECENTER, 42 with REWARD_VISIT_MART.
+PHASE1_MAP_BONUSES = {
+    0: 0.0,
+    12: 1.0,   # Route 1
+    1: 2.0,    # Viridian City
+    41: 4.0,   # Pokémon Center (Viridian) — RL uses REWARD_VISIT_POKECENTER
+    42: 2.0,   # Poké Mart (Viridian) — RL uses REWARD_VISIT_MART
+    13: 1.5,   # Route 2
+    51: 2.0,   # Viridian Forest
+    2: 3.0,    # Pewter City
+    55: 4.0,   # Pokémon Center (Pewter) — RL uses REWARD_VISIT_POKECENTER
+    54: 5.0,   # Pewter Gym
 }
 
 
