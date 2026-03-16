@@ -288,6 +288,7 @@ class _DummyEnv(Env):
         "badges": spaces.MultiBinary(8),
         "events": spaces.MultiBinary((EVENT_FLAGS_END - EVENT_FLAGS_START) * 8),
         "map": spaces.Box(low=0, high=255, shape=(COORDS_PAD * 4, COORDS_PAD * 4, 1), dtype=np.uint8),
+        "mapId": spaces.Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32),
         "recent_actions": spaces.MultiDiscrete([len(V2_ACTION_NAMES)] * 3),
     })
     action_space = spaces.Discrete(len(V2_ACTION_NAMES))
@@ -301,6 +302,7 @@ class _DummyEnv(Env):
             "badges": np.zeros(8, dtype=np.int8),
             "events": np.zeros((EVENT_FLAGS_END - EVENT_FLAGS_START) * 8, dtype=np.int8),
             "map": np.zeros((COORDS_PAD * 4, COORDS_PAD * 4, 1), dtype=np.uint8),
+            "mapId": np.array([0.0], dtype=np.float32),
             "recent_actions": np.zeros(3, dtype=np.int8),
         }, {}
 

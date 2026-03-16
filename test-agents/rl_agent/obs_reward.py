@@ -110,6 +110,14 @@ def build_obs_from_frame_and_state(
                 for c in range(min(map_size, len(row))):
                     map_arr[r, c, 0] = 1 if row[c] else 0
 
+    # Current map ID (ROM 0xD35E) normalized to [0,1] so policy can condition on location (e.g. in Pewter Gym).
+    try:
+        map_id = int(state.get("mapId", 0))
+        map_id = max(0, min(255, map_id))
+    except (TypeError, ValueError):
+        map_id = 0
+    map_id_obs = np.array([map_id / 255.0], dtype=np.float32)
+
     return {
         "screens": screens,
         "health": health,
@@ -117,6 +125,7 @@ def build_obs_from_frame_and_state(
         "badges": badges,
         "events": events,
         "map": map_arr,
+        "mapId": map_id_obs,
         "recent_actions": recent_actions.copy(),
     }
 
@@ -177,12 +186,19 @@ def state_progress(state: dict) -> float:
     )
 
 
-def compute_reward(state_before: dict, state_after: dict, step_penalty: bool = True) -> float:
+def compute_reward(
+    state_before: dict,
+    state_after: dict,
+    step_penalty: bool = True,
+    *,
+    visited_map_ids: set | None = None,
+) -> float:
     """
     Reward for a transition. Stage-1 (Pallet to Brock) objective-oriented:
     progress delta, beat Pokémon + level-up, visit Center/Mart, buy Poké Balls,
     first 3 catches, map objectives (Route 1, Viridian, Center, Mart, Forest, Pewter, Gym), exploration.
     Map and item IDs match emulator/game_state.py (ROM data).
+    When visited_map_ids is provided, visit bonuses for maps 41, 42, 55 are given only on first entry per episode.
     """
     progress_after = state_progress(state_after)
     progress_before = state_progress(state_before)
@@ -235,15 +251,19 @@ def compute_reward(state_before: dict, state_after: dict, step_penalty: bool = T
         ):
             r -= abs(REWARD_STEP_PENALTY) * 5.0
 
-    # Stage-1 objectives: map IDs and default bonuses from emulator/game_state.PHASE1_MAP_BONUSES (ROM 0xD35E)
+    # Stage-1 objectives: map IDs and default bonuses from emulator/game_state.PHASE1_MAP_BONUSES (ROM 0xD35E).
+    # Visit bonuses for Poké Center (41, 55) and Mart (42) are one-time per episode when visited_map_ids is provided.
     if map_after != map_before and map_after is not None:
-        bonus = _PHASE1_MAP_BONUSES.get(map_after, 0.0)
-        if map_after in (41, 55):
-            bonus = REWARD_VISIT_POKECENTER
-        elif map_after == 42:
-            bonus = REWARD_VISIT_MART
-        if bonus != 0:
-            r += bonus
+        if map_after in (41, 42, 55) and visited_map_ids is not None and map_after in visited_map_ids:
+            pass  # already visited this episode, no bonus
+        else:
+            bonus = _PHASE1_MAP_BONUSES.get(map_after, 0.0)
+            if map_after in (41, 55):
+                bonus = REWARD_VISIT_POKECENTER
+            elif map_after == 42:
+                bonus = REWARD_VISIT_MART
+            if bonus != 0:
+                r += bonus
 
     if pokeballs_after > pokeballs_before and REWARD_BUY_POKEBALLS != 0:
         r += (pokeballs_after - pokeballs_before) * REWARD_BUY_POKEBALLS

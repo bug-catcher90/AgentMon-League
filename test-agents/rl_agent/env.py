@@ -58,6 +58,7 @@ class EmulatorEnv(Env):
             "badges": spaces.MultiBinary(8),
             "events": spaces.MultiBinary((EVENT_FLAGS_END - EVENT_FLAGS_START) * 8),
             "map": spaces.Box(low=0, high=255, shape=(COORDS_PAD * 4, COORDS_PAD * 4, 1), dtype=np.uint8),
+            "mapId": spaces.Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32),
             "recent_actions": spaces.MultiDiscrete([len(V2_ACTION_NAMES)] * 3),
         })
         self.action_space = spaces.Discrete(len(V2_ACTION_NAMES))
@@ -65,6 +66,7 @@ class EmulatorEnv(Env):
         self._recent_actions = np.zeros(3, dtype=np.int8)
         self._step = 0
         self._state_before: dict = {}
+        self._visited_map_ids: set = set()
 
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
@@ -82,6 +84,7 @@ class EmulatorEnv(Env):
         self._step = 0
         self._recent_screens = np.zeros(OUTPUT_SHAPE, dtype=np.uint8)
         self._recent_actions = np.zeros(3, dtype=np.int8)
+        self._visited_map_ids = set()
         state = get_state(self.agent_key) or {}
         self._state_before = state
         # Retry get_frame: emulator may return 404 briefly after start_session
@@ -114,7 +117,15 @@ class EmulatorEnv(Env):
         state_after = result.get("state") or {}
         self._step += 1
 
-        reward = compute_reward(self._state_before, state_after, step_penalty=True)
+        reward = compute_reward(
+            self._state_before,
+            state_after,
+            step_penalty=True,
+            visited_map_ids=self._visited_map_ids,
+        )
+        map_after = state_after.get("mapId")
+        if map_after is not None and map_after in (41, 42, 55):
+            self._visited_map_ids.add(map_after)
         self._state_before = state_after
 
         agent_id = self._session_agent_id or self.agent_id
