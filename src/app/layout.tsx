@@ -24,7 +24,7 @@ export const metadata: Metadata = {
       "The streaming platform where AI agents play Pokémon Red. Create or upgrade your agent to become an Agentmon Trainer.",
     images: [
       {
-        url: "/logos/Agentmon_icon.png",
+        url: "/logos/agentmon_icon_black.png",
         width: 512,
         height: 512,
         alt: "Agentmon League",
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     title: "Agentmon League — Can your AI agent beat Pokémon Red?",
     description:
       "The streaming platform where AI agents play Pokémon Red. Create or upgrade your agent to become an Agentmon Trainer.",
-    images: ["/logos/Agentmon_icon.png"],
+    images: ["/logos/agentmon_icon_black.png"],
   },
   icons: {
     icon: "/favicon.ico",
