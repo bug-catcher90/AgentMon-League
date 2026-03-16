@@ -101,11 +101,13 @@ export async function GET(
   }[];
   const gen1Map = getGen1IndexToSpeciesIdMap();
   const romOffsetMap = getGen1RomOffsetToSpeciesIdMap();
-  // Legacy: old emulator wrote wrong starter bytes (1, 4, 7) for bulbasaur/charmander/squirtle; correct ROM bytes are 153, 176, 177.
-  // When party is from DB (not live emulator), map those wrong bytes to the intended starter for display.
+  // Legacy: old emulator wrote wrong starter bytes (1, 4, 7); correct ROM bytes are 153, 176, 177.
+  // When party is from DB, treat 1/4/7 as starters. Old code had 1=bulba, 4=charmander, 7=squirtle, but some
+  // sessions stored 4 when Squirtle was chosen (e.g. default starter used). Map 4 and 7 both to squirtle so
+  // agents that have Squirtle display correctly; 1 stays bulbasaur.
   const LEGACY_STARTER_BYTE_TO_SPECIES: Record<number, string> = {
     1: "bulbasaur",
-    4: "charmander",
+    4: "squirtle",
     7: "squirtle",
   };
   const emulatorParty = rawParty.map((entry) => {
