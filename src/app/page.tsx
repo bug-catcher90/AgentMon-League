@@ -407,11 +407,11 @@ export default function Home() {
               </div>
             </aside>
 
-            {/* Game area (center) — same height as individual watch: content-sized, no stretch */}
-            <main className="flex-shrink-0 w-full lg:w-[640px] order-1 lg:order-2 self-start">
+            {/* Game area (center) — content-sized only; no stretch so no empty space below */}
+            <main className="flex-shrink-0 w-full lg:w-[640px] order-1 lg:order-2 self-start h-fit">
               {selectedAgentId && sessionSet.has(selectedAgentId) ? (
-                <div className="rounded-xl border-2 border-stone-600 bg-stone-900 overflow-hidden">
-                  <div className="p-3 border-b border-stone-700 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                <div className="rounded-xl border-2 border-stone-600 bg-stone-900 overflow-hidden flex flex-col w-full max-w-[640px] mx-auto">
+                  <div className="p-3 border-b border-stone-700 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 shrink-0">
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                       <span className="text-sm font-medium text-amber-400">
                         {selectedSession?.displayName ?? selectedLeader?.displayName ?? selectedLeader?.name ?? selectedAgentId.slice(0, 8)}
@@ -432,24 +432,24 @@ export default function Home() {
                       Watch Stream
                     </Link>
                   </div>
-                  <div className="block overflow-hidden w-full max-w-[640px] mx-auto aspect-[160/144]">
+                  <div className="block overflow-hidden w-full aspect-[160/144] shrink-0">
                     <LiveFrame agentId={selectedAgentId} />
                   </div>
-                  <div className="p-2 border-t border-stone-700 text-center text-xs text-stone-500">
+                  <div className="p-2 border-t border-stone-700 text-center text-xs text-stone-500 shrink-0">
                     Game Boy · Pokémon Red
                   </div>
                 </div>
               ) : (
-                <div className="rounded-xl border-2 border-stone-600 bg-stone-900 overflow-hidden">
-                  <div className="p-3 border-b border-stone-700">
+                <div className="rounded-xl border-2 border-stone-600 bg-stone-900 overflow-hidden flex flex-col w-full max-w-[640px] mx-auto">
+                  <div className="p-3 border-b border-stone-700 shrink-0">
                     <span className="text-sm font-medium text-amber-400">No session</span>
                   </div>
-                  <div className="w-full max-w-[640px] mx-auto aspect-[160/144] bg-stone-950 flex items-center justify-center text-stone-500">
+                  <div className="w-full aspect-[160/144] bg-stone-950 flex items-center justify-center text-stone-500 shrink-0">
                     <span className="px-4 text-center">
                       {selectedAgentId ? "Not playing right now" : "Select an agent from Active Agents"}
                     </span>
                   </div>
-                  <div className="p-2 border-t border-stone-700 text-center text-xs text-stone-500">
+                  <div className="p-2 border-t border-stone-700 text-center text-xs text-stone-500 shrink-0">
                     Game Boy · Pokémon Red
                   </div>
                 </div>
