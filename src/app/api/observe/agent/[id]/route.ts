@@ -86,8 +86,10 @@ export async function GET(
         regionId: agent.state.regionId ?? null,
       }
     : null;
+  const lastStarterChoice = (agent.state?.lastStarterChoice as string)?.toLowerCase() || null;
+  const validStarter = lastStarterChoice && ["bulbasaur", "charmander", "squirtle"].includes(lastStarterChoice) ? lastStarterChoice : null;
 
-  // When agent has an active session, always expose state (from emulator + DB). Use emulator for party, inventory, region, pokedex.
+  // Party: live emulator when session active, else last snapshot from DB (saved on session stop). ROM bytes: 153=Bulbasaur, 176=Charmander, 177=Squirtle.
   const rawPartySource =
     emulatorState != null &&
     Array.isArray(emulatorState.party) &&
@@ -101,16 +103,14 @@ export async function GET(
   }[];
   const gen1Map = getGen1IndexToSpeciesIdMap();
   const romOffsetMap = getGen1RomOffsetToSpeciesIdMap();
-  // Legacy: old emulator wrote wrong starter bytes (1, 4, 7); correct ROM bytes are 153, 176, 177.
-  // When party is from DB, treat 1/4/7 as starters. Old code had 1=bulba, 4=charmander, 7=squirtle, but some
-  // sessions stored 4 when Squirtle was chosen (e.g. default starter used). Map 4 and 7 both to squirtle so
-  // agents that have Squirtle display correctly; 1 stays bulbasaur.
+  // Legacy wrong bytes (old emulator): 1/4/7 were written instead of 153/176/177. Map to starters when party is from DB.
   const LEGACY_STARTER_BYTE_TO_SPECIES: Record<number, string> = {
     1: "bulbasaur",
     4: "squirtle",
     7: "squirtle",
   };
-  const emulatorParty = rawParty.map((entry) => {
+  const ROM_STARTER_BYTES = new Set([153, 176, 177]); // correct ROM bytes for Bulbasaur, Charmander, Squirtle
+  const emulatorParty = rawParty.map((entry, index) => {
     let speciesId: string | undefined =
       typeof entry?.speciesId === "string" ? entry.speciesId : undefined;
     const rawNum =
@@ -119,7 +119,9 @@ export async function GET(
         : speciesId?.match(/^species-(\d+)$/)?.[1];
     if (rawNum !== undefined) {
       const n = typeof rawNum === "string" ? parseInt(rawNum, 10) : rawNum;
-      if (!partyFromLiveEmulator && LEGACY_STARTER_BYTE_TO_SPECIES[n] !== undefined) {
+      if (!partyFromLiveEmulator && index === 0 && validStarter && ROM_STARTER_BYTES.has(n)) {
+        speciesId = validStarter;
+      } else if (!partyFromLiveEmulator && LEGACY_STARTER_BYTE_TO_SPECIES[n] !== undefined) {
         speciesId = LEGACY_STARTER_BYTE_TO_SPECIES[n];
       } else {
         speciesId = romOffsetMap[n] ?? gen1Map[n] ?? speciesId;

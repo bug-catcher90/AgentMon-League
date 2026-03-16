@@ -103,6 +103,9 @@ model AgentState {
   party         Json     @default("[]") // CreatureInstance[] max 6
   storage       Json     @default("[]") // CreatureInstance[]
 
+  // Emulator: starter chosen when session started (bulbasaur/charmander/squirtle). Used to display correct species when party byte is 153/176/177.
+  lastStarterChoice String?
+
   currentMatchId String?
   currentMatch   Match?   @relation(fields: [currentMatchId], references: [id])
   updatedAt     DateTime @updatedAt

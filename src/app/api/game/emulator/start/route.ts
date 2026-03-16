@@ -138,6 +138,23 @@ async function handleStart(req: Request) {
     await prisma.eventLog.create({
       data: { agentId: agent.id, line: `Session started at ${now}` },
     }).catch(() => {});
+
+    // Persist starter choice so profile can show correct species when party byte is 153/176/177 (ROM bytes for starters).
+    if (starter && !loadSessionId) {
+      const world = await prisma.world.findFirst();
+      if (world) {
+        await prisma.agentState.upsert({
+          where: { agentId: agent.id },
+          create: {
+            agentId: agent.id,
+            worldId: world.id,
+            lastStarterChoice: starter,
+          },
+          update: { lastStarterChoice: starter },
+        }).catch(() => {});
+      }
+    }
+
     // Always return the agent id used for the session so clients use the correct id for frame/state
     return NextResponse.json({ ...data, agentId: agent.id });
   } catch {
