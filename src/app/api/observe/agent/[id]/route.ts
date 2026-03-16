@@ -88,14 +88,22 @@ export async function GET(
     : null;
 
   // When agent has an active session, always expose state (from emulator + DB). Use emulator for party, inventory, region, pokedex.
-  const rawPartySource =
-    Array.isArray(emulatorState?.party) && emulatorState.party.length > 0 ? emulatorState.party : baseState?.party;
+  const partyFromEmulator =
+    Array.isArray(emulatorState?.party) && emulatorState.party.length > 0;
+  const rawPartySource = partyFromEmulator ? emulatorState.party : baseState?.party;
   const rawParty = (Array.isArray(rawPartySource) ? rawPartySource : []) as {
     speciesId?: string | number;
     level?: number;
   }[];
   const gen1Map = getGen1IndexToSpeciesIdMap();
   const romOffsetMap = getGen1RomOffsetToSpeciesIdMap();
+  // Legacy: old emulator wrote wrong starter bytes (1, 4, 7) for bulbasaur/charmander/squirtle; correct ROM bytes are 153, 176, 177.
+  // When party is from DB (not live emulator), map those wrong bytes to the intended starter for display.
+  const LEGACY_STARTER_BYTE_TO_SPECIES: Record<number, string> = {
+    1: "bulbasaur",
+    4: "charmander",
+    7: "squirtle",
+  };
   const emulatorParty = rawParty.map((entry) => {
     let speciesId: string | undefined =
       typeof entry?.speciesId === "string" ? entry.speciesId : undefined;
@@ -105,7 +113,11 @@ export async function GET(
         : speciesId?.match(/^species-(\d+)$/)?.[1];
     if (rawNum !== undefined) {
       const n = typeof rawNum === "string" ? parseInt(rawNum, 10) : rawNum;
-      speciesId = romOffsetMap[n] ?? gen1Map[n] ?? speciesId;
+      if (!partyFromEmulator && LEGACY_STARTER_BYTE_TO_SPECIES[n] !== undefined) {
+        speciesId = LEGACY_STARTER_BYTE_TO_SPECIES[n];
+      } else {
+        speciesId = romOffsetMap[n] ?? gen1Map[n] ?? speciesId;
+      }
     }
     return { ...entry, speciesId: speciesId ?? (entry?.speciesId != null ? String(entry.speciesId) : undefined) };
   });
