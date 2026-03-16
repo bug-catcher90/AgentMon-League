@@ -34,7 +34,10 @@ PARTY_SIZE_ADDRESS = 0xD163
 PARTY_SPECIES_LIST_BASE = 0xD164  # D164–D169 = one byte per slot (some ROMs use different values here)
 PARTY_MON1_STRUCT = 0xD16B  # First byte of first Pokémon's 44-byte struct = species (standard in Gen 1)
 PARTY_STRUCT_STRIDE = 44
-STARTER_SPECIES = {"bulbasaur": 1, "charmander": 4, "squirtle": 7}
+# Starter species: ROM party-struct species byte values for this Pokémon Red ROM.
+# These must match GEN1_ROM_SPECIES_TO_ID and the frontend getGen1RomOffsetToSpeciesIdMap:
+#   153 = bulbasaur, 176 = charmander, 177 = squirtle.
+STARTER_SPECIES = {"bulbasaur": 153, "charmander": 176, "squirtle": 177}
 
 # ROM species byte → canonical species id (corrected mapping for Pokémon Red ROM)
 # Format: ROM byte value (from party/memory) → lowercase species id.
