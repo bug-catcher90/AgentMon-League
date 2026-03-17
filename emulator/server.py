@@ -64,7 +64,7 @@ ROM_PATH = os.environ.get("EMULATOR_ROM_PATH", "PokemonRed.gb")
 INIT_STATE_PATH = os.environ.get("EMULATOR_INIT_STATE", "")
 # When EMULATOR_INIT_STATE is unset, look for this file in the emulator directory (start after Oak's parcel).
 DEFAULT_INIT_STATE_FILENAME = "has_pokedex.state"
-ACTION_FREQ = int(os.environ.get("EMULATOR_ACTION_FREQ", "6"))  # ticks per button (lower = faster; 6 ≈ 2x faster than 12)
+ACTION_FREQ = max(1, int(os.environ.get("EMULATOR_ACTION_FREQ", "6")))  # ticks per button (lower = faster; 6 ≈ 2x faster than 12)
 
 # Session liveness / reclamation
 SESSION_TTL_SECONDS = max(5, int(os.environ.get("EMULATOR_SESSION_TTL_SECONDS", "180")))
