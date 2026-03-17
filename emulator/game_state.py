@@ -618,14 +618,17 @@ def inject_names(pyboy, player_name: str, rival_name: str = "Rival") -> None:
 
 def inject_starter(pyboy, starter: str) -> None:
     """Set the first party Pokémon species to the chosen starter (bulbasaur, charmander, squirtle).
-    Use when init state is 'after Oak's parcel' and we want to pick which starter the agent has."""
+    Use when init state is 'after Oak's parcel' and we want to pick which starter the agent has.
+    Writes to both the 44-byte struct (D16B) and the species list (D164) so the game and our
+    reads stay in sync regardless of which address the game uses during play."""
     try:
         key = (starter or "").strip().lower()
-        species_id = STARTER_SPECIES.get(key)
-        if species_id is None:
+        species_byte = STARTER_SPECIES.get(key)
+        if species_byte is None:
             return
         mem = pyboy.memory
         if hasattr(mem, "__setitem__"):
-            mem[PARTY_MON1_STRUCT] = species_id
+            mem[PARTY_MON1_STRUCT] = species_byte
+            mem[PARTY_SPECIES_LIST_BASE] = species_byte  # D164 = species list slot 0; game may read this during battle/menu
     except Exception:
         pass
