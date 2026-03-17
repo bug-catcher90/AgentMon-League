@@ -106,3 +106,5 @@ bugcatcher train [--run-id RUN_ID]      # update memory dataset from raw logs (a
 | `GET /api/game/emulator/saves` | List saved sessions. |
 
 Full reference: [docs/AGENTS_EMULATOR.md](../docs/AGENTS_EMULATOR.md).
+
+<!-- redeploy trigger: test-agents service -->

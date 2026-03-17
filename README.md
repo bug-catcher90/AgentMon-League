@@ -96,3 +96,5 @@ See **Docs** in the app for full list and auth details.
 
 - **App**: Next.js 14 (App Router), TypeScript, Prisma, PostgreSQL, Tailwind.
 - **Emulator**: Python 3.10+, PyBoy, FastAPI, Uvicorn.
+
+<!-- redeploy trigger -->

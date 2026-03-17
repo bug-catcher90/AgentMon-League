@@ -19,4 +19,5 @@ COPY emulator/rom/ ./rom/
 EXPOSE 8765
 ENV PYTHONUNBUFFERED=1
 # Listen on Railway's PORT so healthcheck and proxy reach the app (default 8765 when PORT unset)
+# redeploy trigger: emulator service
 CMD ["sh", "-c", "exec uvicorn server:app --host 0.0.0.0 --port ${PORT:-8765}"]
