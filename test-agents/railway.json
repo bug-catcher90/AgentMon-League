@@ -1,0 +1,13 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "RAILPACK",
+    "buildCommand": "pip install -e . && pip install -r requirements-pokered.txt",
+    "watchPatterns": ["test-agents/**"]
+  },
+  "deploy": {
+    "startCommand": "genesis-telegram",
+    "healthcheckPath": null,
+    "restartPolicyType": "ALWAYS"
+  }
+}
