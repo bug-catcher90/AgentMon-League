@@ -363,8 +363,12 @@ def _run_one_action(pyboy, action_name: str, speed: int) -> None:
     mult = max(1, speed) if speed else 1
     if press_ev is not None:
         pyboy.send_input(press_ev)
+    # Release partway through the action window to create a press->release edge.
+    # Historically the emulator used ACTION_FREQ=12 and released at tick 8 (~2/3 through).
+    # When ACTION_FREQ is changed, keep the same proportion.
+    release_tick = max(1, min(ACTION_FREQ - 1, round(ACTION_FREQ * 2 / 3)))
     for i in range(ACTION_FREQ):
-        if i == 8 and release_ev is not None:
+        if i == release_tick and release_ev is not None:
             pyboy.send_input(release_ev)
         for _ in range(mult):
             pyboy.tick(1, True)

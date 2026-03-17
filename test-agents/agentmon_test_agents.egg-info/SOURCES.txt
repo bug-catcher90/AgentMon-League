@@ -12,6 +12,7 @@ pyproject.toml
 ./bug_catcher/memory_update.py
 ./bug_catcher/moltbook_bootstrap.py
 ./bug_catcher/moltbook_client.py
+./bug_catcher/moltbook_post_general.py
 ./bug_catcher/moltbook_reply.py
 ./bug_catcher/play_loop.py
 ./bug_catcher/storage.py

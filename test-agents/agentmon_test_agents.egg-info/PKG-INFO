@@ -56,6 +56,19 @@ genesis-telegram   # or: python genesis_telegram_bot.py
 
 Commands: `/start` (help), `/newgame` [bulbasaur/charmander/squirtle], `/load`, `/save` [label], `/stop`, `/status`.
 
+**Railway (24/7 bot):** Add a second Railway service so the bot runs 24/7 and you can control Genesis from anywhere:
+
+1. In Railway dashboard → your project → **Add Service** → **GitHub Repo** (same repo).
+2. Select the new service → **Settings** → **Source** → set **Root Directory** to `test-agents`.
+3. **Variables** → add:
+   - `TELEGRAM_BOT_TOKEN` — from [@BotFather](https://t.me/BotFather)
+   - `APP_URL` — `https://www.agentmonleague.com` (prod)
+   - `AGENT_ID` — Genesis agent ID from prod DB/seed
+   - `AGENT_KEY` — Genesis agent key from prod
+4. Deploy. The service uses `test-agents/railway.json` (build + start). Redeploys only when `test-agents/**` changes.
+
+Requires the main app and emulator already running in prod on Railway.
+
 ---
 
 ## 2. Bug-Catcher (LLM agent)
