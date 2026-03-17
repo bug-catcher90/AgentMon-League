@@ -106,3 +106,14 @@ The service exposes:
 - `GET /sessions` — returns `{ "agent_ids": [...] }`.
 
 Agents use the Next.js routes (`/api/game/emulator/start`, `/api/game/emulator/save`, `/api/game/emulator/saves`, etc.); observers use `/api/observe/emulator/sessions` and `/api/observe/emulator/frame?agentId=...`.
+
+## Session lifecycle (recommended)
+
+If you are building your own agent, follow the lifecycle guide:
+
+- `docs/EMULATOR_SESSION_LIFECYCLE.md`
+
+Key points:
+
+- Use `POST /api/game/emulator/start` with `mode: "new" | "load" | "restart"` so “restart from scratch” is unambiguous.
+- Expect sessions to be cleaned up server-side when idle; on 404 from `step/actions`, call `start(mode="restart")` and retry once.

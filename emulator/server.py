@@ -409,6 +409,7 @@ def session_step(agent_id: str, body: StepBody):
     })
 
     feedback = compute_step_feedback(name, state_before, state_after)
+    rec["last_step_at"] = time.time()
 
     return {"ok": True, "action": name, "state": state_after, "feedback": feedback}
 
@@ -455,6 +456,7 @@ def session_actions(agent_id: str, body: ActionsBody):
     explored = rec.setdefault("explored", set())
     explored.add((state.get("mapId", 0), state.get("x", 0), state.get("y", 0)))
     state["explorationMap"] = build_exploration_grid(explored)
+    rec["last_step_at"] = time.time()
     return {"ok": True, "actionsExecuted": len(body.actions), "state": state}
 
 
@@ -493,6 +495,43 @@ def session_recent_actions(agent_id: str):
             return {"recent_actions": []}
         recent = rec.get("recent_actions") or []
     return {"recent_actions": list(recent)}
+
+
+@app.get("/session/{agent_id}/status")
+def session_status(agent_id: str):
+    """
+    Read-only status for session lifecycle + debugging.
+    Does not refresh TTL lease (watching should not keep sessions alive).
+    """
+    with _sessions_lock:
+        rec = sessions.get(agent_id)
+        if not rec:
+            raise HTTPException(status_code=404, detail="No session for this agent")
+        # Copy out fields to avoid exposing PyBoy object / mutable sets.
+        started_at = rec.get("started_at")
+        last_heartbeat_at = rec.get("last_heartbeat_at")
+        lease_expires_at = rec.get("lease_expires_at")
+        last_step_at = rec.get("last_step_at")
+        step_count = rec.get("step_count", 0)
+        speed = rec.get("speed", 0)
+        player_name = rec.get("player_name", "Agent")
+
+    now = _now()
+    return {
+        "ok": True,
+        "agent_id": agent_id,
+        "state": "running",
+        "ttlSeconds": SESSION_TTL_SECONDS,
+        "reaperIntervalSeconds": SESSION_REAPER_INTERVAL_SECONDS,
+        "startedAt": float(started_at) if started_at is not None else None,
+        "lastHeartbeatAt": float(last_heartbeat_at) if last_heartbeat_at is not None else None,
+        "leaseExpiresAt": float(lease_expires_at) if lease_expires_at is not None else None,
+        "lastStepAt": float(last_step_at) if last_step_at is not None else None,
+        "stepCount": int(step_count or 0),
+        "speed": speed,
+        "playerName": player_name,
+        "serverTime": float(now),
+    }
 
 
 @app.get("/session/{agent_id}/state")

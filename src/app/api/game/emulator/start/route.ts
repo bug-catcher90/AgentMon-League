@@ -10,12 +10,16 @@ const RATE_LIMIT_START_PER_MINUTE = Math.max(0, parseInt(process.env.RATE_LIMIT_
 const VALID_STARTERS = ["bulbasaur", "charmander", "squirtle"] as const;
 export type StarterChoice = (typeof VALID_STARTERS)[number];
 
+const VALID_MODES = ["new", "load", "restart"] as const;
+type StartMode = (typeof VALID_MODES)[number];
+
 /**
  * POST /api/game/emulator/start
  * Start a Pokemon Red emulator session for the authenticated agent.
  * Body:
  *   - {} or { starter?, speed? } → new session (optionally from init state + starter).
  *   - { loadSessionId: string } → load a previously saved game (optional label/speed ignored for payload).
+ *   - { mode: "new" | "load" | "restart", ... } → explicit lifecycle control.
  */
 export async function POST(req: Request) {
   try {
@@ -59,8 +63,13 @@ async function handleStart(req: Request) {
   let starter: StarterChoice | undefined;
   let speed: number | string | undefined;
   let loadSessionId: string | undefined;
+  let mode: StartMode | undefined;
   try {
     const body = await req.json().catch(() => ({}));
+    const rawMode = (body.mode as string | undefined)?.toLowerCase()?.trim();
+    if (rawMode && VALID_MODES.includes(rawMode as StartMode)) {
+      mode = rawMode as StartMode;
+    }
     const raw = (body.starter as string)?.toLowerCase();
     if (raw && VALID_STARTERS.includes(raw as StarterChoice)) {
       starter = raw as StarterChoice;
@@ -73,6 +82,19 @@ async function handleStart(req: Request) {
     }
   } catch {
     // no body or invalid JSON
+  }
+
+  // Backwards-compatible defaulting:
+  // - If caller provided loadSessionId but no mode, interpret as "load".
+  // - Otherwise default to "new".
+  if (!mode) {
+    mode = loadSessionId ? "load" : "new";
+  }
+  if (mode === "load" && !loadSessionId) {
+    return NextResponse.json(
+      { error: "mode=load requires loadSessionId" },
+      { status: 400 }
+    );
   }
 
   // Enforce global session cap so the server doesn't run out of resources
@@ -113,6 +135,15 @@ async function handleStart(req: Request) {
   }
 
   try {
+    // restart: best-effort stop the existing session first, then start fresh (or start from loadSessionId if provided)
+    if (mode === "restart") {
+      try {
+        await fetch(`${EMULATOR_URL}/session/${agent.id}/stop`, { method: "POST" });
+      } catch {
+        // ignore; start may still succeed if session didn't exist
+      }
+    }
+
     const res = await fetch(`${EMULATOR_URL}/session/start`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

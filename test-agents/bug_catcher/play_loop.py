@@ -14,7 +14,7 @@ from bug_catcher.api_client import (
     get_frame,
     get_state,
     save_session as api_save_session,
-    step as api_step,
+    step_with_auto_restart as api_step,
     stop_session as api_stop_session,
 )
 from bug_catcher.config import (

@@ -8,6 +8,18 @@ import requests
 from bug_catcher.config import APP_URL, AGENT_ID, AGENT_KEY, STARTER
 
 
+def get_status(agent_key: str) -> dict[str, Any]:
+    """Return authenticated emulator session status: { state: running|stopped, ... }."""
+    r = requests.get(
+        f"{APP_URL}/api/game/emulator/status",
+        headers={"X-Agent-Key": agent_key},
+        timeout=10,
+    )
+    if r.status_code != 200:
+        return {"state": "unknown"}
+    return r.json()
+
+
 def register(display_name: str | None = "Bug-Catcher") -> tuple[str, str]:
     payload: dict = {}
     if display_name and display_name.strip():
@@ -49,10 +61,13 @@ def require_credentials() -> tuple[str, str]:
 def start_session(
     agent_key: str,
     *,
+    mode: str | None = None,  # new|load|restart (optional; defaults handled by server)
     starter: str | None = None,
     load_session_id: str | None = None,
 ) -> dict[str, Any]:
     payload: dict[str, Any] = {}
+    if mode and mode.strip():
+        payload["mode"] = mode.strip().lower()
     if load_session_id:
         payload["loadSessionId"] = load_session_id.strip()
     else:
@@ -138,6 +153,43 @@ def step(agent_key: str, action: str) -> dict[str, Any]:
     if r.status_code != 200:
         raise RuntimeError(f"Step failed: {r.status_code} {r.text}")
     return r.json()
+
+
+def ensure_session(
+    agent_key: str,
+    *,
+    mode: str = "new",
+    starter: str | None = None,
+    load_session_id: str | None = None,
+) -> dict[str, Any]:
+    """
+    Canonical lifecycle helper:
+      - mode=new: start session if needed
+      - mode=load: load from save id
+      - mode=restart: stop+start (optionally from save id)
+    """
+    return start_session(
+        agent_key,
+        mode=mode,
+        starter=starter,
+        load_session_id=load_session_id,
+    )
+
+
+def step_with_auto_restart(agent_key: str, action: str, *, starter: str | None = None) -> dict[str, Any]:
+    """
+    Step once; if session is missing (404), restart and retry once.
+    This prevents agents getting stuck after TTL expiry or emulator restarts.
+    """
+    try:
+        return step(agent_key, action)
+    except RuntimeError as e:
+        msg = str(e)
+        if " 404 " not in msg and "404" not in msg:
+            raise
+        # Restart session and retry once
+        ensure_session(agent_key, mode="restart", starter=starter)
+        return step(agent_key, action)
 
 
 def run_actions(

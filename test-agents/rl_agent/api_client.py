@@ -7,6 +7,18 @@ import requests
 from rl_agent.config import APP_URL, AGENT_ID, AGENT_KEY, STARTER
 
 
+def get_status(agent_key: str) -> dict:
+    """Authenticated emulator status: { state: running|stopped, ... }."""
+    r = requests.get(
+        f"{APP_URL}/api/game/emulator/status",
+        headers={"X-Agent-Key": agent_key},
+        timeout=10,
+    )
+    if r.status_code != 200:
+        return {"state": "unknown"}
+    return r.json()
+
+
 def _error_message(r: requests.Response, prefix: str) -> str:
     """Build a short error message from response; avoid dumping HTML."""
     try:
@@ -45,9 +57,12 @@ def start_session(
     agent_key: str,
     starter: str | None = None,
     load_session_id: str | None = None,
+    mode: str | None = None,  # new|load|restart
 ) -> dict:
     """Start a game session. Returns the API response; use response.get('agentId') for frame/state (correct after DB reset)."""
     payload: dict = {}
+    if mode and mode.strip():
+        payload["mode"] = mode.strip().lower()
     if load_session_id:
         payload["loadSessionId"] = load_session_id.strip()
     elif (starter or STARTER) and (starter or STARTER).lower() in ("bulbasaur", "charmander", "squirtle"):
@@ -153,3 +168,32 @@ def run_action(agent_key: str, action_name: str) -> dict:
     if r.status_code != 200:
         raise RuntimeError(f"Actions failed: {r.status_code} {r.text}")
     return r.json()
+
+
+def ensure_session(
+    agent_key: str,
+    *,
+    mode: str = "new",
+    starter: str | None = None,
+    load_session_id: str | None = None,
+) -> dict:
+    return start_session(
+        agent_key,
+        starter=starter,
+        load_session_id=load_session_id,
+        mode=mode,
+    )
+
+
+def run_action_with_auto_restart(agent_key: str, action_name: str, *, starter: str | None = None) -> dict:
+    """
+    Run one action via /actions; if the session is missing (404), restart and retry once.
+    """
+    try:
+        return run_action(agent_key, action_name)
+    except RuntimeError as e:
+        msg = str(e)
+        if " 404 " not in msg and "404" not in msg:
+            raise
+        ensure_session(agent_key, mode="restart", starter=starter)
+        return run_action(agent_key, action_name)

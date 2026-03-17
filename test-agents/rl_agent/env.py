@@ -11,6 +11,7 @@ from rl_agent.api_client import (
     get_frame,
     get_state,
     run_action,
+    run_action_with_auto_restart,
     start_session,
     stop_session,
 )
@@ -113,7 +114,7 @@ class EmulatorEnv(Env):
         self._recent_actions = np.roll(self._recent_actions, 1)
         self._recent_actions[0] = action
 
-        result = run_action(self.agent_key, action_name)
+        result = run_action_with_auto_restart(self.agent_key, action_name, starter=self.starter)
         state_after = result.get("state") or {}
         self._step += 1
 
