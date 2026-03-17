@@ -437,10 +437,24 @@ def session_actions(agent_id: str, body: ActionsBody):
     valid = set(ACTION_INDEX.keys())
     step_count = rec.setdefault("step_count", 0)
     recent = rec.setdefault("recent_actions", deque(maxlen=30))
+    merged_effects: set[str] = set()
+    last_feedback_message: str | None = None
     for a in body.actions:
         name = (a or "").strip().lower()
         if name and name in valid:
+            state_before = get_game_state(pyboy, started_at)
             _run_one_action(pyboy, name, run_speed)
+            state_after = get_game_state(pyboy, started_at)
+            fb = compute_step_feedback(name, state_before, state_after)
+            try:
+                for eff in (fb.get("effects") or []):
+                    if isinstance(eff, str) and eff:
+                        merged_effects.add(eff)
+                msg = fb.get("message")
+                if isinstance(msg, str) and msg.strip():
+                    last_feedback_message = msg.strip()
+            except Exception:
+                pass
             step_count += 1
             recent.append({
                 "step": step_count,
@@ -461,7 +475,18 @@ def session_actions(agent_id: str, body: ActionsBody):
     explored.add((state.get("mapId", 0), state.get("x", 0), state.get("y", 0)))
     state["explorationMap"] = build_exploration_grid(explored)
     rec["last_step_at"] = time.time()
-    return {"ok": True, "actionsExecuted": len(body.actions), "state": state}
+    feedback = None
+    if merged_effects:
+        feedback = {
+            "effects": sorted(merged_effects),
+            "message": last_feedback_message or "Batch actions executed.",
+        }
+    return {
+        "ok": True,
+        "actionsExecuted": len(body.actions),
+        "state": state,
+        **({"feedback": feedback} if feedback else {}),
+    }
 
 
 @app.get("/session/{agent_id}/frame")
