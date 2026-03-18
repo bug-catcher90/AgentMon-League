@@ -439,7 +439,13 @@ def session_actions(agent_id: str, body: ActionsBody):
     recent = rec.setdefault("recent_actions", deque(maxlen=30))
     merged_effects: set[str] = set()
     last_feedback_message: str | None = None
-    for a in body.actions:
+    # Important: long /actions batches can run for minutes if speed is low.
+    # Refresh the session lease periodically during execution so the TTL reaper
+    # does not reclaim an active session mid-batch.
+    now = _now()
+    for i, a in enumerate(body.actions):
+        if i % 10 == 0:
+            _touch_session(rec, now=now)
         name = (a or "").strip().lower()
         if name and name in valid:
             state_before = get_game_state(pyboy, started_at)
@@ -462,6 +468,7 @@ def session_actions(agent_id: str, body: ActionsBody):
                 "action": name,
                 "ts": time.time(),
             })
+        now = _now()
     rec["step_count"] = step_count
     state = get_game_state(pyboy, started_at)
     map_name = state.get("mapName", "?")
