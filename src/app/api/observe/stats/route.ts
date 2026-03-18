@@ -49,7 +49,8 @@ export async function GET() {
       totalPlaytimeSeconds,
     });
   } catch (e) {
-    console.error("[observe/stats]", e);
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[observe/stats] Database or emulator error:", msg);
     return NextResponse.json(
       { totalAgents: 0, liveSessions: 0, totalBattlesPlayed: 0, totalPlaytimeSeconds: 0 },
       { status: 200 }

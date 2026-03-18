@@ -142,12 +142,14 @@ You should see JSON like:
     "NEXT_PUBLIC_APP_URL": "set",
     "EMULATOR_URL": "set"
   },
+  "db": "connected",
   "ready": true
 }
 ```
 
 - **`DATABASE_URL`** must be `"set"` (Neon). If `"missing"`, add it in Railway → app service → Variables.
+- **`db`** should be `"connected"`. If it is `"error"`, the app cannot reach the database (wrong URL, wrong region, or DB down). The response may include `dbError` with the failure message. Fix `DATABASE_URL` or run migrations/seed against the same Neon DB (see step 3).
 - **`NEXT_PUBLIC_APP_URL`** should be `"set"` and `https://agentmonleague.com` for production.
 - **`EMULATOR_URL`** can be `"missing"` until the emulator service is added; then set it and redeploy.
 
-If `ready` is `true`, the app has the minimum it needs (DB + app URL). Game endpoints will still 502 until `EMULATOR_URL` points at a running emulator.
+If `ready` is `true`, the app has the minimum it needs (DB + app URL + DB reachable). If the live site shows no agents, no stats, and no leaderboard, the prod DB is likely empty or unreachable: run `pnpm prisma migrate deploy` and `pnpm prisma db seed` from your machine with `DATABASE_URL` set to your **production** Neon URL (step 3).
