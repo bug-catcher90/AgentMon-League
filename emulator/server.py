@@ -105,6 +105,15 @@ def _touch_session(rec: dict, now: float | None = None) -> None:
     rec["lease_expires_at"] = t + SESSION_TTL_SECONDS
 
 
+def _busy_enter(rec: dict) -> None:
+    rec["busy_count"] = int(rec.get("busy_count") or 0) + 1
+
+
+def _busy_exit(rec: dict) -> None:
+    n = int(rec.get("busy_count") or 0) - 1
+    rec["busy_count"] = n if n > 0 else 0
+
+
 def _safe_stop_pyboy(pyboy) -> None:
     """Best-effort stop/close; never raise."""
     try:
@@ -141,6 +150,10 @@ def _reap_expired_sessions_once() -> int:
         for agent_id, rec in list(sessions.items()):
             exp = rec.get("lease_expires_at")
             if isinstance(exp, (int, float)) and now > float(exp):
+                # Never reap a session that is actively executing a request.
+                if int(rec.get("busy_count") or 0) > 0:
+                    _touch_session(rec, now=now)
+                    continue
                 expired.append(agent_id)
     n = 0
     for agent_id in expired:
@@ -383,8 +396,11 @@ def session_step(agent_id: str, body: StepBody):
         if not rec:
             raise HTTPException(status_code=404, detail="No session for this agent")
         _touch_session(rec)
+        _busy_enter(rec)
     idx = ACTION_INDEX.get(body.action.strip().lower())
     if idx is None:
+        with _sessions_lock:
+            _busy_exit(rec)
         raise HTTPException(status_code=400, detail=f"Invalid action. Use: {list(ACTION_INDEX.keys())}")
 
     name, press_ev, release_ev = VALID_ACTIONS[idx]
@@ -393,8 +409,12 @@ def session_step(agent_id: str, body: StepBody):
     speed = rec.get("speed", 1)
 
     state_before = get_game_state(pyboy, started_at)
-    _run_one_action(pyboy, body.action.strip().lower(), speed)
-    state_after = get_game_state(pyboy, started_at)
+    try:
+        _run_one_action(pyboy, body.action.strip().lower(), speed)
+        state_after = get_game_state(pyboy, started_at)
+    finally:
+        with _sessions_lock:
+            _busy_exit(rec)
     if state_after.get("partySize", 0) == 0:
         player_name = rec.get("player_name", "Agent")
         inject_names(pyboy, player_name, "Rival")
@@ -429,6 +449,7 @@ def session_actions(agent_id: str, body: ActionsBody):
         if not rec:
             raise HTTPException(status_code=404, detail="No session for this agent")
         _touch_session(rec)
+        _busy_enter(rec)
     pyboy = rec["pyboy"]
     started_at = rec.get("started_at")
     run_speed = body.speed if body.speed is not None else rec.get("speed", 1)
@@ -443,32 +464,36 @@ def session_actions(agent_id: str, body: ActionsBody):
     # Refresh the session lease periodically during execution so the TTL reaper
     # does not reclaim an active session mid-batch.
     now = _now()
-    for i, a in enumerate(body.actions):
-        if i % 10 == 0:
-            _touch_session(rec, now=now)
-        name = (a or "").strip().lower()
-        if name and name in valid:
-            state_before = get_game_state(pyboy, started_at)
-            _run_one_action(pyboy, name, run_speed)
-            state_after = get_game_state(pyboy, started_at)
-            fb = compute_step_feedback(name, state_before, state_after)
-            try:
-                for eff in (fb.get("effects") or []):
-                    if isinstance(eff, str) and eff:
-                        merged_effects.add(eff)
-                msg = fb.get("message")
-                if isinstance(msg, str) and msg.strip():
-                    last_feedback_message = msg.strip()
-            except Exception:
-                pass
-            step_count += 1
-            recent.append({
-                "step": step_count,
-                "mapName": "",  # filled below
-                "action": name,
-                "ts": time.time(),
-            })
-        now = _now()
+    try:
+        for i, a in enumerate(body.actions):
+            if i % 10 == 0:
+                _touch_session(rec, now=now)
+            name = (a or "").strip().lower()
+            if name and name in valid:
+                state_before = get_game_state(pyboy, started_at)
+                _run_one_action(pyboy, name, run_speed)
+                state_after = get_game_state(pyboy, started_at)
+                fb = compute_step_feedback(name, state_before, state_after)
+                try:
+                    for eff in (fb.get("effects") or []):
+                        if isinstance(eff, str) and eff:
+                            merged_effects.add(eff)
+                    msg = fb.get("message")
+                    if isinstance(msg, str) and msg.strip():
+                        last_feedback_message = msg.strip()
+                except Exception:
+                    pass
+                step_count += 1
+                recent.append({
+                    "step": step_count,
+                    "mapName": "",  # filled below
+                    "action": name,
+                    "ts": time.time(),
+                })
+            now = _now()
+    finally:
+        with _sessions_lock:
+            _busy_exit(rec)
     rec["step_count"] = step_count
     state = get_game_state(pyboy, started_at)
     map_name = state.get("mapName", "?")
