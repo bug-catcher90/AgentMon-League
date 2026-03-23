@@ -38,9 +38,13 @@ export async function POST(req: Request) {
       // ignore
     }
 
-    await fetch(`${EMULATOR_URL}/session/${agent.id}/stop`, {
+    const stopRes = await fetch(`${EMULATOR_URL}/session/${agent.id}/stop`, {
       method: "POST",
     });
+    if (!stopRes.ok) {
+      const text = await stopRes.text().catch(() => "");
+      throw new Error(`Emulator stop failed: ${stopRes.status} ${text}`);
+    }
 
     const now = new Date().toISOString();
     await prisma.eventLog.create({
@@ -147,6 +151,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true });
   } catch {
-    return NextResponse.json({ ok: true, message: "Service unreachable" });
+    return NextResponse.json({ ok: false, error: "Emulator service unreachable" }, { status: 502 });
   }
 }

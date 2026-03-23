@@ -12,7 +12,14 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.vec_env import DummyVecEnv
 
-from rl_agent.api_client import get_frame, get_state, run_action, save_session, stop_session
+from rl_agent.api_client import (
+    get_frame,
+    get_state,
+    run_action,
+    run_action_with_auto_restart,
+    save_session,
+    stop_session,
+)
 from rl_agent.checkpoints import get_checkpoint_dir, get_load_path, load_latest_path, log_play_run, save_model
 from rl_agent.env import EmulatorEnv
 from rl_agent.obs_reward import (
@@ -239,8 +246,17 @@ def run_play_loop(
             recent_actions[0] = action_idx
 
             try:
-                result = run_action(agent_key, action_name)
+                result = run_action_with_auto_restart(agent_key, action_name)
                 _state = result.get("state") or {}
+                if result.get("_session_restarted"):
+                    # Reset visual/action history so the next obs isn't contaminated
+                    # by frames from the pre-restart session.
+                    recent_screens = np.zeros(OUTPUT_SHAPE, dtype=np.uint8)
+                    recent_actions = np.zeros(3, dtype=np.int8)
+                    recent_actions[0] = action_idx
+                    restarted_agent_id = result.get("_restarted_agent_id")
+                    if restarted_agent_id:
+                        agent_id = str(restarted_agent_id)
             except Exception as e:
                 print(f"Step error: {e}", file=sys.stderr)
                 time.sleep(2)

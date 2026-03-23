@@ -124,7 +124,7 @@ def get_state(agent_key: str) -> dict:
         timeout=5,
     )
     if r.status_code != 200:
-        return {}
+        return {"_state_error_status": r.status_code}
     return r.json()
 
 
@@ -195,5 +195,15 @@ def run_action_with_auto_restart(agent_key: str, action_name: str, *, starter: s
         msg = str(e)
         if " 404 " not in msg and "404" not in msg:
             raise
-        ensure_session(agent_key, mode="restart", starter=starter)
-        return run_action(agent_key, action_name)
+        restart_data = ensure_session(agent_key, mode="restart", starter=starter)
+        resp = run_action(agent_key, action_name)
+        # Attach restart metadata so the RL env can avoid mixing rewards across
+        # sessions when the emulator reboots mid-episode.
+        resp["_session_restarted"] = True
+        if isinstance(restart_data, dict):
+            resp["_restarted_agent_id"] = (
+                restart_data.get("agentId")
+                or restart_data.get("agent_id")
+                or restart_data.get("agentID")
+            )
+        return resp

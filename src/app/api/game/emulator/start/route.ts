@@ -102,8 +102,12 @@ async function handleStart(req: Request) {
     try {
       const sessRes = await fetch(`${EMULATOR_URL}/sessions`, { cache: "no-store" });
       const sessData = (await sessRes.json().catch(() => ({}))) as { agent_ids?: string[] };
-      const current = (sessData.agent_ids ?? []).length;
-      if (current >= MAX_CONCURRENT_SESSIONS) {
+      const agentIds = sessData.agent_ids ?? [];
+      const current = agentIds.length;
+      // For restart flows (and same-agent start refresh), don't block on cap.
+      // We are not adding an extra concurrent session when the agent already has one.
+      const agentAlreadyRunning = agentIds.includes(agent.id);
+      if (!agentAlreadyRunning && current >= MAX_CONCURRENT_SESSIONS) {
         return NextResponse.json(
           {
             error: "Server at capacity",

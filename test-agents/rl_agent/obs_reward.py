@@ -198,7 +198,7 @@ def compute_reward(
     progress delta, beat Pokémon + level-up, visit Center/Mart, buy Poké Balls,
     first 3 catches, map objectives (Route 1, Viridian, Center, Mart, Forest, Pewter, Gym), exploration.
     Map and item IDs match emulator/game_state.py (ROM data).
-    When visited_map_ids is provided, visit bonuses for maps 41, 42, 55 are given only on first entry per episode.
+    When visited_map_ids is provided, map objective bonuses are granted only once per episode per map id.
     """
     progress_after = state_progress(state_after)
     progress_before = state_progress(state_before)
@@ -235,8 +235,9 @@ def compute_reward(
         r += (pokedex_owned_after - pokedex_owned_before) * REWARD_POKEDEX_OWNED
 
     # First-team building and team growth outside pure grinding.
-    if party_after > party_before:
-        r += (party_after - party_before) * REWARD_PARTY
+    # NOTE: state_progress already includes partySize * REWARD_PARTY in its delta.
+    # Keeping additional party-size delta bonuses would double-count and make reversible
+    # party-size changes exploitable.
 
     # Battle outcome shaping: reward leaving battle with progress and
     # slightly penalize “wasted” battles that did not change party/dex/badges.
@@ -254,10 +255,11 @@ def compute_reward(
     # Stage-1 objectives: map IDs and default bonuses from emulator/game_state.PHASE1_MAP_BONUSES (ROM 0xD35E).
     # Visit bonuses for Poké Center (41, 55) and Mart (42) are one-time per episode when visited_map_ids is provided.
     if map_after != map_before and map_after is not None:
-        if map_after in (41, 42, 55) and visited_map_ids is not None and map_after in visited_map_ids:
+        if visited_map_ids is not None and map_after in visited_map_ids:
             pass  # already visited this episode, no bonus
         else:
             bonus = _PHASE1_MAP_BONUSES.get(map_after, 0.0)
+            # Override the generic map-bonus with explicit one-time objective rewards.
             if map_after in (41, 55):
                 bonus = REWARD_VISIT_POKECENTER
             elif map_after == 42:

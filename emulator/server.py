@@ -92,6 +92,7 @@ VALID_ACTIONS, ACTION_INDEX = _valid_actions() if PYBOY_AVAILABLE else ([], {})
 
 sessions: dict[str, dict] = {}  # agent_id -> session record
 _sessions_lock = threading.RLock()
+_session_start_locks: dict[str, threading.Lock] = {}  # agent_id -> serialize emulator creation
 
 
 def _now() -> float:
@@ -152,6 +153,11 @@ def _reap_expired_sessions_once() -> int:
             if isinstance(exp, (int, float)) and now > float(exp):
                 # Never reap a session that is actively executing a request.
                 if int(rec.get("busy_count") or 0) > 0:
+                    # If an explicit stop was requested, don't extend the lease;
+                    # let the session become eligible for stop right after the
+                    # current request finishes.
+                    if rec.get("pending_stop"):
+                        continue
                     _touch_session(rec, now=now)
                     continue
                 expired.append(agent_id)
@@ -300,90 +306,103 @@ def session_start(body: StartBody):
         raise HTTPException(status_code=503, detail="PyBoy not installed")
     agent_id = body.agent_id
     with _sessions_lock:
-        existing = sessions.get(agent_id)
-        if existing:
-            _touch_session(existing)
-            return {"ok": True, "agent_id": agent_id, "message": "Session already exists"}
+        start_lock = _session_start_locks.get(agent_id)
+        if start_lock is None:
+            start_lock = threading.Lock()
+            _session_start_locks[agent_id] = start_lock
 
-    rom = _rom_path()
-    if not rom.exists():
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"ROM not found at {rom}. "
-                "Put your Pokemon Red ROM in emulator/rom/, emulator/, or project root, "
-                "or set EMULATOR_ROM_PATH to its full path before starting the server."
-            ),
-        )
+    # Serialize emulator creation per agent to prevent concurrent PyBoy leaks
+    # (two concurrent starts for same agent previously could both create and one
+    # would overwrite the other session record).
+    with start_lock:
+        with _sessions_lock:
+            existing = sessions.get(agent_id)
+            if existing:
+                _touch_session(existing)
+                return {"ok": True, "agent_id": agent_id, "message": "Session already exists"}
 
-    # Headless: no display, sound off to avoid buffer overrun log spam
-    try:
-        pyboy = PyBoy(str(rom), window="null", sound_emulated=False)
-    except TypeError:
+        rom = _rom_path()
+        if not rom.exists():
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"ROM not found at {rom}. "
+                    "Put your Pokemon Red ROM in emulator/rom/, emulator/, or project root, "
+                    "or set EMULATOR_ROM_PATH to its full path before starting the server."
+                ),
+            )
+
+        # Headless: no display, sound off to avoid buffer overrun log spam
         try:
-            pyboy = PyBoy(str(rom), window="null")
+            pyboy = PyBoy(str(rom), window="null", sound_emulated=False)
         except TypeError:
-            pyboy = PyBoy(str(rom))
+            try:
+                pyboy = PyBoy(str(rom), window="null")
+            except TypeError:
+                pyboy = PyBoy(str(rom))
 
-    init_state_used = None
-    if body.initial_state_base64:
-        import base64
-        try:
-            state_bytes = base64.b64decode(body.initial_state_base64)
-            pyboy.load_state(io.BytesIO(state_bytes))
-        except Exception as e:
-            pyboy.close()
-            raise HTTPException(status_code=400, detail=f"Invalid initial_state_base64: {e!s}")
-    else:
-        state_path = _init_state_path()
-        if state_path is not None:
-            with open(state_path, "rb") as f:
-                pyboy.load_state(f)
-            init_state_used = state_path.name
+        init_state_used = None
+        if body.initial_state_base64:
+            import base64
+            try:
+                state_bytes = base64.b64decode(body.initial_state_base64)
+                pyboy.load_state(io.BytesIO(state_bytes))
+            except Exception as e:
+                pyboy.close()
+                raise HTTPException(status_code=400, detail=f"Invalid initial_state_base64: {e!s}")
+        else:
+            state_path = _init_state_path()
+            if state_path is not None:
+                with open(state_path, "rb") as f:
+                    pyboy.load_state(f)
+                init_state_used = state_path.name
 
-    player_name = (body.player_name or "Agent").strip() or "Agent"
-    # Inject names so the game shows agent as player and "Rival" as rival (bypass name entry)
-    inject_names(pyboy, player_name, "Rival")
-    # When using "after Oak's parcel" init state (e.g. has_pokedex.state), set first party Pokémon to chosen starter.
-    # If the caller did not pass starter, use EMULATOR_DEFAULT_STARTER or "charmander" so the session is valid.
-    starter_choice = (body.starter or "").strip().lower()
-    if init_state_used and init_state_used.lower() == DEFAULT_INIT_STATE_FILENAME.lower():
-        if starter_choice not in ("bulbasaur", "charmander", "squirtle"):
-            starter_choice = os.environ.get("EMULATOR_DEFAULT_STARTER", "charmander").strip().lower()
+        player_name = (body.player_name or "Agent").strip() or "Agent"
+        # Inject names so the game shows agent as player and "Rival" as rival (bypass name entry)
+        inject_names(pyboy, player_name, "Rival")
+        # When using "after Oak's parcel" init state (e.g. has_pokedex.state), set first party Pokémon to chosen starter.
+        # If the caller did not pass starter, use EMULATOR_DEFAULT_STARTER or "charmander" so the session is valid.
+        starter_choice = (body.starter or "").strip().lower()
+        if init_state_used and init_state_used.lower() == DEFAULT_INIT_STATE_FILENAME.lower():
             if starter_choice not in ("bulbasaur", "charmander", "squirtle"):
-                starter_choice = "charmander"
-        inject_starter(pyboy, starter_choice)
-    elif starter_choice in ("bulbasaur", "charmander", "squirtle"):
-        inject_starter(pyboy, starter_choice)
-    # Speed: 0 = unlimited (no frame limit), 1 = 1x real-time, 2 = 2x, etc. Default 0 so game doesn't feel laggy.
-    speed = 0
-    if body.speed is not None:
-        if body.speed in (0, "unlimited", "max"):
-            speed = 0
-        elif isinstance(body.speed, int) and body.speed >= 1:
-            speed = min(body.speed, 8)
-    try:
-        pyboy.set_emulation_speed(speed)
-    except AttributeError:
-        pass
-    rec = {
-        "pyboy": pyboy,
-        "player_name": player_name,
-        "started_at": time.time(),
-        "speed": speed,
-        "explored": set(),  # (map_id, x, y) for exploration map
-        "step_count": 0,
-        "recent_actions": deque(maxlen=30),  # { "step", "mapName", "action", "ts" }
-    }
-    _touch_session(rec)
-    with _sessions_lock:
-        sessions[agent_id] = rec
-    out = {"ok": True, "agent_id": agent_id}
-    if init_state_used:
-        out["init_state"] = init_state_used
-    if starter_choice in ("bulbasaur", "charmander", "squirtle"):
-        out["starter"] = starter_choice
-    return out
+                starter_choice = os.environ.get("EMULATOR_DEFAULT_STARTER", "charmander").strip().lower()
+                if starter_choice not in ("bulbasaur", "charmander", "squirtle"):
+                    starter_choice = "charmander"
+            inject_starter(pyboy, starter_choice)
+        elif starter_choice in ("bulbasaur", "charmander", "squirtle"):
+            inject_starter(pyboy, starter_choice)
+        # Speed: 0 = unlimited (no frame limit), 1 = 1x real-time, 2 = 2x, etc. Default 0 so game doesn't feel laggy.
+        speed = 0
+        if body.speed is not None:
+            if body.speed in (0, "unlimited", "max"):
+                speed = 0
+            elif isinstance(body.speed, int) and body.speed >= 1:
+                speed = min(body.speed, 8)
+        try:
+            pyboy.set_emulation_speed(speed)
+        except AttributeError:
+            pass
+        rec = {
+            "pyboy": pyboy,
+            "player_name": player_name,
+            "started_at": time.time(),
+            "speed": speed,
+            "explored": set(),  # (map_id, x, y) for exploration map
+            "step_count": 0,
+            "busy_count": 0,
+            "pending_stop": False,
+            "stop_reason": None,
+            "recent_actions": deque(maxlen=30),  # { "step", "mapName", "action", "ts" }
+        }
+        _touch_session(rec)
+        with _sessions_lock:
+            sessions[agent_id] = rec
+        out = {"ok": True, "agent_id": agent_id}
+        if init_state_used:
+            out["init_state"] = init_state_used
+        if starter_choice in ("bulbasaur", "charmander", "squirtle"):
+            out["starter"] = starter_choice
+        return out
 
 
 def _run_one_action(pyboy, action_name: str, speed: int) -> None:
@@ -428,34 +447,45 @@ def session_step(agent_id: str, body: StepBody):
     speed = rec.get("speed", 1)
 
     state_before = get_game_state(pyboy, started_at)
+    should_stop = False
+    stop_reason: str | None = None
     try:
         _run_one_action(pyboy, body.action.strip().lower(), speed)
         state_after = get_game_state(pyboy, started_at)
     finally:
         with _sessions_lock:
+            should_stop = bool(rec.get("pending_stop"))
+            stop_reason = rec.get("stop_reason")
+    try:
+        if state_after.get("partySize", 0) == 0:
+            player_name = rec.get("player_name", "Agent")
+            inject_names(pyboy, player_name, "Rival")
+
+        explored = rec.setdefault("explored", set())
+        explored.add((state_after.get("mapId", 0), state_after.get("x", 0), state_after.get("y", 0)))
+        state_after["explorationMap"] = build_exploration_grid(explored)
+
+        step_count = rec.setdefault("step_count", 0) + 1
+        rec["step_count"] = step_count
+        rec.setdefault("recent_actions", deque(maxlen=30)).append({
+            "step": step_count,
+            "mapName": state_after.get("mapName", "?"),
+            "action": name,
+            "ts": time.time(),
+        })
+
+        feedback = compute_step_feedback(name, state_before, state_after)
+        rec["last_step_at"] = time.time()
+        response_state = _compact_state_payload(state_after) if body.compact else state_after
+
+        return {"ok": True, "action": name, "state": response_state, "feedback": feedback}
+    finally:
+        with _sessions_lock:
             _busy_exit(rec)
-    if state_after.get("partySize", 0) == 0:
-        player_name = rec.get("player_name", "Agent")
-        inject_names(pyboy, player_name, "Rival")
-
-    explored = rec.setdefault("explored", set())
-    explored.add((state_after.get("mapId", 0), state_after.get("x", 0), state_after.get("y", 0)))
-    state_after["explorationMap"] = build_exploration_grid(explored)
-
-    step_count = rec.setdefault("step_count", 0) + 1
-    rec["step_count"] = step_count
-    rec.setdefault("recent_actions", deque(maxlen=30)).append({
-        "step": step_count,
-        "mapName": state_after.get("mapName", "?"),
-        "action": name,
-        "ts": time.time(),
-    })
-
-    feedback = compute_step_feedback(name, state_before, state_after)
-    rec["last_step_at"] = time.time()
-    response_state = _compact_state_payload(state_after) if body.compact else state_after
-
-    return {"ok": True, "action": name, "state": response_state, "feedback": feedback}
+            should_stop = bool(rec.get("pending_stop"))
+            stop_reason = rec.get("stop_reason")
+        if should_stop:
+            _stop_and_delete_session(agent_id, reason=stop_reason or "pending_stop")
 
 
 @app.post("/session/{agent_id}/actions")
@@ -480,6 +510,8 @@ def session_actions(agent_id: str, body: ActionsBody):
     recent = rec.setdefault("recent_actions", deque(maxlen=30))
     merged_effects: set[str] = set()
     last_feedback_message: str | None = None
+    should_stop = False
+    stop_reason: str | None = None
     # Important: long /actions batches can run for minutes if speed is low.
     # Refresh the session lease periodically during execution so the TTL reaper
     # does not reclaim an active session mid-batch.
@@ -513,33 +545,42 @@ def session_actions(agent_id: str, body: ActionsBody):
             now = _now()
     finally:
         with _sessions_lock:
-            _busy_exit(rec)
+            should_stop = bool(rec.get("pending_stop"))
+            stop_reason = rec.get("stop_reason")
     rec["step_count"] = step_count
-    state = get_game_state(pyboy, started_at)
-    map_name = state.get("mapName", "?")
-    n = min(len([a for a in body.actions if (a or "").strip().lower() in valid]), len(recent))
-    for i in range(1, n + 1):
-        recent[-i]["mapName"] = map_name
-    if state.get("partySize", 0) == 0:
-        player_name = rec.get("player_name", "Agent")
-        inject_names(pyboy, player_name, "Rival")
-    explored = rec.setdefault("explored", set())
-    explored.add((state.get("mapId", 0), state.get("x", 0), state.get("y", 0)))
-    state["explorationMap"] = build_exploration_grid(explored)
-    rec["last_step_at"] = time.time()
-    response_state = _compact_state_payload(state) if body.compact else state
-    feedback = None
-    if merged_effects:
-        feedback = {
-            "effects": sorted(merged_effects),
-            "message": last_feedback_message or "Batch actions executed.",
+    try:
+        state = get_game_state(pyboy, started_at)
+        map_name = state.get("mapName", "?")
+        n = min(len([a for a in body.actions if (a or "").strip().lower() in valid]), len(recent))
+        for i in range(1, n + 1):
+            recent[-i]["mapName"] = map_name
+        if state.get("partySize", 0) == 0:
+            player_name = rec.get("player_name", "Agent")
+            inject_names(pyboy, player_name, "Rival")
+        explored = rec.setdefault("explored", set())
+        explored.add((state.get("mapId", 0), state.get("x", 0), state.get("y", 0)))
+        state["explorationMap"] = build_exploration_grid(explored)
+        rec["last_step_at"] = time.time()
+        response_state = _compact_state_payload(state) if body.compact else state
+        feedback = None
+        if merged_effects:
+            feedback = {
+                "effects": sorted(merged_effects),
+                "message": last_feedback_message or "Batch actions executed.",
+            }
+        return {
+            "ok": True,
+            "actionsExecuted": len(body.actions),
+            "state": response_state,
+            **({"feedback": feedback} if feedback else {}),
         }
-    return {
-        "ok": True,
-        "actionsExecuted": len(body.actions),
-        "state": response_state,
-        **({"feedback": feedback} if feedback else {}),
-    }
+    finally:
+        with _sessions_lock:
+            _busy_exit(rec)
+            should_stop = bool(rec.get("pending_stop"))
+            stop_reason = rec.get("stop_reason")
+        if should_stop:
+            _stop_and_delete_session(agent_id, reason=stop_reason or "pending_stop")
 
 
 @app.get("/session/{agent_id}/frame")
@@ -562,10 +603,22 @@ def session_frame(agent_id: str):
 
 @app.post("/session/{agent_id}/stop")
 def session_stop(agent_id: str):
+    with _sessions_lock:
+        rec = sessions.get(agent_id)
+        if not rec:
+            return {"ok": True, "message": "No session"}
+
+        # If the emulator is in the middle of a step/actions execution, defer
+        # the actual PyBoy stop until busy_count drops back to 0.
+        if int(rec.get("busy_count") or 0) > 0:
+            rec["pending_stop"] = True
+            rec["stop_reason"] = "explicit_stop_deferred"
+            # Make it eligible for reaping/cleanup immediately after busy ends.
+            rec["lease_expires_at"] = _now()
+            return {"ok": True, "message": "Stop deferred until request completes"}
+
     existed = _stop_and_delete_session(agent_id, reason="explicit_stop")
-    if not existed:
-        return {"ok": True, "message": "No session"}
-    return {"ok": True}
+    return {"ok": True, "message": "No session"} if not existed else {"ok": True}
 
 
 @app.get("/session/{agent_id}/recent_actions")

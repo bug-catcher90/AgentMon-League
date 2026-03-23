@@ -33,7 +33,7 @@ export async function POST(req: Request) {
   const compact = body.compact === true;
 
   try {
-    const res = await fetch(`${EMULATOR_URL}/session/${agent.id}/actions`, {
+    let res = await fetch(`${EMULATOR_URL}/session/${agent.id}/actions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -42,11 +42,42 @@ export async function POST(req: Request) {
         ...(compact && { compact: true }),
       }),
     });
-    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    let data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+
+    // Self-heal: if emulator lost the session (404), restart and retry once.
+    if (!res.ok && res.status === 404) {
+      const agentKeyHeader = req.headers.get("X-Agent-Key") ?? "";
+      const origin = new URL(req.url).origin;
+      const restartRes = await fetch(`${origin}/api/game/emulator/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Agent-Key": agentKeyHeader },
+        body: JSON.stringify({ mode: "restart" }),
+      });
+
+      if (restartRes.ok) {
+        res = await fetch(`${EMULATOR_URL}/session/${agent.id}/actions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            actions,
+            ...(speed !== undefined && { speed }),
+            ...(compact && { compact: true }),
+          }),
+        });
+        data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      } else {
+        const restartData = (await restartRes.json().catch(() => ({}))) as Record<string, unknown>;
+        return NextResponse.json(
+          { error: (restartData.error as string) ?? (restartData.message as string) ?? "Failed to restart session" },
+          { status: restartRes.status }
+        );
+      }
+    }
+
     if (!res.ok) {
       return NextResponse.json(
         { error: (data.detail as string) ?? "Emulator service error" },
-        { status: res.status === 404 ? 404 : res.status }
+        { status: res.status }
       );
     }
     // Include frame in response so RL agent can skip a separate get_frame round-trip (faster steps in prod).

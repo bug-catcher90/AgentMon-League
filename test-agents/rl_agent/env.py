@@ -117,9 +117,23 @@ class EmulatorEnv(Env):
         result = run_action_with_auto_restart(self.agent_key, action_name, starter=self.starter)
         state_after = result.get("state") or {}
         self._step += 1
+        did_restart = bool(result.get("_session_restarted"))
+        restarted_agent_id = result.get("_restarted_agent_id")
+        if did_restart:
+            # If the emulator restarted mid-episode, avoid computing reward deltas
+            # against pre-restart state (which would corrupt PPO training signal).
+            if restarted_agent_id:
+                self._session_agent_id = str(restarted_agent_id)
+            self._visited_map_ids = set()
+            self._recent_screens = np.zeros(OUTPUT_SHAPE, dtype=np.uint8)
+            self._recent_actions = np.zeros(3, dtype=np.int8)
+            self._recent_actions[0] = int(action)
+            state_before_for_reward = state_after
+        else:
+            state_before_for_reward = self._state_before
 
         reward = compute_reward(
-            self._state_before,
+            state_before_for_reward,
             state_after,
             step_penalty=True,
             visited_map_ids=self._visited_map_ids,
@@ -145,5 +159,5 @@ class EmulatorEnv(Env):
 
         terminated = False
         truncated = self._step >= self._episode_max_steps
-        info = {"state": state_after, "step": self._step}
+        info = {"state": state_after, "step": self._step, "restarted": did_restart}
         return obs, float(reward), terminated, truncated, info
