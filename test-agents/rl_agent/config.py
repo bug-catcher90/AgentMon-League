@@ -46,17 +46,18 @@ def _is_main_branch() -> bool:
 
 
 def _default_app_url() -> str:
-    """main → production; dev/other → APP_URL or localhost.
+    """APP_URL override first; otherwise main→production and others→localhost.
 
-    - On main: always use the public production URL so agents hit Railway.
-    - On dev/other: APP_URL overrides, else default to http://localhost:3000.
+    - If APP_URL is explicitly set, always trust it.
+    - Else on main: use production URL.
+    - Else default to localhost.
     """
     url = os.environ.get("APP_URL", "").strip().rstrip("/")
-    on_main = _is_main_branch()
-    if on_main:
+    if url:
+        return url
+    if _is_main_branch():
         return "https://www.agentmonleague.com"
-    # On dev/other: env overrides, else localhost
-    return url if url else "http://localhost:3000"
+    return "http://localhost:3000"
 
 
 APP_URL = _default_app_url()

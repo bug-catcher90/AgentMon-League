@@ -16,6 +16,7 @@ import logging
 import os
 import time
 from collections import deque
+from contextlib import contextmanager
 from pathlib import Path
 import threading
 
@@ -115,6 +116,45 @@ def _busy_exit(rec: dict) -> None:
     rec["busy_count"] = n if n > 0 else 0
 
 
+def _get_exec_lock(rec: dict) -> threading.RLock:
+    lock = rec.get("exec_lock")
+    if hasattr(lock, "acquire") and hasattr(lock, "release"):
+        return lock
+    # Backward-safe: attach lock to older in-memory records.
+    lock = threading.RLock()
+    rec["exec_lock"] = lock
+    return lock
+
+
+@contextmanager
+def _session_guard(agent_id: str, *, touch: bool = False):
+    """
+    Acquire a live session record and mark it busy for lifecycle safety.
+    Use this in every endpoint that touches PyBoy so stop/reaper can't
+    delete the session while a request is running.
+    """
+    with _sessions_lock:
+        rec = sessions.get(agent_id)
+        if not rec:
+            raise HTTPException(status_code=404, detail="No session for this agent")
+        if touch:
+            _touch_session(rec)
+        _busy_enter(rec)
+        exec_lock = _get_exec_lock(rec)
+    should_stop = False
+    stop_reason: str | None = None
+    try:
+        with exec_lock:
+            yield rec
+    finally:
+        with _sessions_lock:
+            _busy_exit(rec)
+            should_stop = bool(rec.get("pending_stop"))
+            stop_reason = rec.get("stop_reason")
+        if should_stop:
+            _stop_and_delete_session(agent_id, reason=stop_reason or "pending_stop")
+
+
 def _safe_stop_pyboy(pyboy) -> None:
     """Best-effort stop/close; never raise."""
     try:
@@ -135,9 +175,17 @@ def _stop_and_delete_session(agent_id: str, *, reason: str) -> bool:
         if not rec:
             return False
         rec["stop_reason"] = reason
+        if int(rec.get("busy_count") or 0) > 0:
+            rec["pending_stop"] = True
+            rec["stop_reason"] = reason
+            rec["lease_expires_at"] = _now()
+            return False
         pyboy = rec.get("pyboy")
         # Remove from dict first so concurrent requests see it as gone.
         del sessions[agent_id]
+        start_lock = _session_start_locks.get(agent_id)
+        if start_lock is not None and not start_lock.locked():
+            _session_start_locks.pop(agent_id, None)
     if pyboy is not None:
         _safe_stop_pyboy(pyboy)
     return True
@@ -199,7 +247,11 @@ def _startup_reaper():
 
 @app.on_event("shutdown")
 def _shutdown_reaper():
+    global _reaper_thread
     _reaper_stop_event.set()
+    if _reaper_thread and _reaper_thread.is_alive():
+        _reaper_thread.join(timeout=2)
+    _reaper_thread = None
     # Best-effort stop all sessions so the process exits cleanly.
     with _sessions_lock:
         agent_ids = list(sessions.keys())
@@ -387,6 +439,7 @@ def session_start(body: StartBody):
             "player_name": player_name,
             "started_at": time.time(),
             "speed": speed,
+            "exec_lock": threading.RLock(),
             "explored": set(),  # (map_id, x, y) for exploration map
             "step_count": 0,
             "busy_count": 0,
@@ -429,34 +482,25 @@ def _run_one_action(pyboy, action_name: str, speed: int) -> None:
 
 @app.post("/session/{agent_id}/step")
 def session_step(agent_id: str, body: StepBody):
-    with _sessions_lock:
-        rec = sessions.get(agent_id)
-        if not rec:
-            raise HTTPException(status_code=404, detail="No session for this agent")
-        _touch_session(rec)
-        _busy_enter(rec)
     idx = ACTION_INDEX.get(body.action.strip().lower())
     if idx is None:
-        with _sessions_lock:
-            _busy_exit(rec)
         raise HTTPException(status_code=400, detail=f"Invalid action. Use: {list(ACTION_INDEX.keys())}")
 
-    name, press_ev, release_ev = VALID_ACTIONS[idx]
-    pyboy = rec["pyboy"]
-    started_at = rec.get("started_at")
-    speed = rec.get("speed", 1)
+    name, _, _ = VALID_ACTIONS[idx]
+    with _session_guard(agent_id, touch=True) as rec:
+        pyboy = rec["pyboy"]
+        started_at = rec.get("started_at")
+        speed = rec.get("speed", 1)
+        state_after = None
+        state_before = get_game_state(pyboy, started_at)
+        try:
+            _run_one_action(pyboy, body.action.strip().lower(), speed)
+            state_after = get_game_state(pyboy, started_at)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Step execution failed: {e!s}")
+        if state_after is None:
+            raise HTTPException(status_code=500, detail="Step execution failed: missing state")
 
-    state_before = get_game_state(pyboy, started_at)
-    should_stop = False
-    stop_reason: str | None = None
-    try:
-        _run_one_action(pyboy, body.action.strip().lower(), speed)
-        state_after = get_game_state(pyboy, started_at)
-    finally:
-        with _sessions_lock:
-            should_stop = bool(rec.get("pending_stop"))
-            stop_reason = rec.get("stop_reason")
-    try:
         if state_after.get("partySize", 0) == 0:
             player_name = rec.get("player_name", "Agent")
             inject_names(pyboy, player_name, "Rival")
@@ -473,19 +517,10 @@ def session_step(agent_id: str, body: StepBody):
             "action": name,
             "ts": time.time(),
         })
-
         feedback = compute_step_feedback(name, state_before, state_after)
         rec["last_step_at"] = time.time()
         response_state = _compact_state_payload(state_after) if body.compact else state_after
-
         return {"ok": True, "action": name, "state": response_state, "feedback": feedback}
-    finally:
-        with _sessions_lock:
-            _busy_exit(rec)
-            should_stop = bool(rec.get("pending_stop"))
-            stop_reason = rec.get("stop_reason")
-        if should_stop:
-            _stop_and_delete_session(agent_id, reason=stop_reason or "pending_stop")
 
 
 @app.post("/session/{agent_id}/actions")
@@ -494,61 +529,49 @@ def session_actions(agent_id: str, body: ActionsBody):
     Run a sequence of actions at session speed (or override with body.speed).
     No per-step response; returns final state after all actions. Use for query-driven agents.
     """
-    with _sessions_lock:
-        rec = sessions.get(agent_id)
-        if not rec:
-            raise HTTPException(status_code=404, detail="No session for this agent")
-        _touch_session(rec)
-        _busy_enter(rec)
-    pyboy = rec["pyboy"]
-    started_at = rec.get("started_at")
-    run_speed = body.speed if body.speed is not None else rec.get("speed", 1)
-    if run_speed == 0:
-        run_speed = 1  # still tick at least once per sub-step
-    valid = set(ACTION_INDEX.keys())
-    step_count = rec.setdefault("step_count", 0)
-    recent = rec.setdefault("recent_actions", deque(maxlen=30))
-    merged_effects: set[str] = set()
-    last_feedback_message: str | None = None
-    should_stop = False
-    stop_reason: str | None = None
-    # Important: long /actions batches can run for minutes if speed is low.
-    # Refresh the session lease periodically during execution so the TTL reaper
-    # does not reclaim an active session mid-batch.
-    now = _now()
-    try:
-        for i, a in enumerate(body.actions):
-            if i % 10 == 0:
-                _touch_session(rec, now=now)
-            name = (a or "").strip().lower()
-            if name and name in valid:
-                state_before = get_game_state(pyboy, started_at)
-                _run_one_action(pyboy, name, run_speed)
-                state_after = get_game_state(pyboy, started_at)
-                fb = compute_step_feedback(name, state_before, state_after)
-                try:
-                    for eff in (fb.get("effects") or []):
-                        if isinstance(eff, str) and eff:
-                            merged_effects.add(eff)
-                    msg = fb.get("message")
-                    if isinstance(msg, str) and msg.strip():
-                        last_feedback_message = msg.strip()
-                except Exception:
-                    pass
-                step_count += 1
-                recent.append({
-                    "step": step_count,
-                    "mapName": "",  # filled below
-                    "action": name,
-                    "ts": time.time(),
-                })
-            now = _now()
-    finally:
-        with _sessions_lock:
-            should_stop = bool(rec.get("pending_stop"))
-            stop_reason = rec.get("stop_reason")
-    rec["step_count"] = step_count
-    try:
+    with _session_guard(agent_id, touch=True) as rec:
+        pyboy = rec["pyboy"]
+        started_at = rec.get("started_at")
+        run_speed = body.speed if body.speed is not None else rec.get("speed", 1)
+        if run_speed == 0:
+            run_speed = 1  # still tick at least once per sub-step
+        valid = set(ACTION_INDEX.keys())
+        step_count = rec.setdefault("step_count", 0)
+        recent = rec.setdefault("recent_actions", deque(maxlen=30))
+        merged_effects: set[str] = set()
+        last_feedback_message: str | None = None
+        now = _now()
+        try:
+            for i, a in enumerate(body.actions):
+                if i % 10 == 0:
+                    _touch_session(rec, now=now)
+                name = (a or "").strip().lower()
+                if name and name in valid:
+                    state_before = get_game_state(pyboy, started_at)
+                    _run_one_action(pyboy, name, run_speed)
+                    state_after = get_game_state(pyboy, started_at)
+                    fb = compute_step_feedback(name, state_before, state_after)
+                    try:
+                        for eff in (fb.get("effects") or []):
+                            if isinstance(eff, str) and eff:
+                                merged_effects.add(eff)
+                        msg = fb.get("message")
+                        if isinstance(msg, str) and msg.strip():
+                            last_feedback_message = msg.strip()
+                    except Exception:
+                        pass
+                    step_count += 1
+                    recent.append({
+                        "step": step_count,
+                        "mapName": "",  # filled below
+                        "action": name,
+                        "ts": time.time(),
+                    })
+                now = _now()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Batch actions failed: {e!s}")
+
+        rec["step_count"] = step_count
         state = get_game_state(pyboy, started_at)
         map_name = state.get("mapName", "?")
         n = min(len([a for a in body.actions if (a or "").strip().lower() in valid]), len(recent))
@@ -574,22 +597,11 @@ def session_actions(agent_id: str, body: ActionsBody):
             "state": response_state,
             **({"feedback": feedback} if feedback else {}),
         }
-    finally:
-        with _sessions_lock:
-            _busy_exit(rec)
-            should_stop = bool(rec.get("pending_stop"))
-            stop_reason = rec.get("stop_reason")
-        if should_stop:
-            _stop_and_delete_session(agent_id, reason=stop_reason or "pending_stop")
 
 
 @app.get("/session/{agent_id}/frame")
 def session_frame(agent_id: str):
-    with _sessions_lock:
-        rec = sessions.get(agent_id)
-        if not rec:
-            raise HTTPException(status_code=404, detail="No session for this agent")
-    try:
+    with _session_guard(agent_id, touch=False) as rec:
         pyboy = rec["pyboy"]
         # PyBoy 2.x: pyboy.screen.image is PIL Image (RGBA 160x144)
         img = pyboy.screen.image.copy()
@@ -597,8 +609,6 @@ def session_frame(agent_id: str):
         img.save(buf, format="PNG")
         buf.seek(0)
         return Response(content=buf.read(), media_type="image/png")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Frame capture failed: {e!s}")
 
 
 @app.post("/session/{agent_id}/stop")
@@ -616,9 +626,15 @@ def session_stop(agent_id: str):
             # Make it eligible for reaping/cleanup immediately after busy ends.
             rec["lease_expires_at"] = _now()
             return {"ok": True, "message": "Stop deferred until request completes"}
-
-    existed = _stop_and_delete_session(agent_id, reason="explicit_stop")
-    return {"ok": True, "message": "No session"} if not existed else {"ok": True}
+        pyboy = rec.get("pyboy")
+        rec["stop_reason"] = "explicit_stop"
+        del sessions[agent_id]
+        start_lock = _session_start_locks.get(agent_id)
+        if start_lock is not None and not start_lock.locked():
+            _session_start_locks.pop(agent_id, None)
+    if pyboy is not None:
+        _safe_stop_pyboy(pyboy)
+    return {"ok": True}
 
 
 @app.get("/session/{agent_id}/recent_actions")
@@ -672,38 +688,31 @@ def session_status(agent_id: str):
 @app.get("/session/{agent_id}/state")
 def session_state(agent_id: str, compact: bool = False):
     """Current game state (position, map, party, badges, pokedex, eventFlags, levels, explorationMap) for agent/observer."""
-    with _sessions_lock:
-        rec = sessions.get(agent_id)
-        if not rec:
-            raise HTTPException(status_code=404, detail="No session for this agent")
-    import time
-    pyboy = rec["pyboy"]
-    started_at = rec.get("started_at")
-    if started_at is None:
-        started_at = time.time()
-        rec["started_at"] = started_at
-    state = get_game_state(pyboy, started_at)
-    explored = rec.setdefault("explored", set())
-    explored.add((state.get("mapId", 0), state.get("x", 0), state.get("y", 0)))
-    state["explorationMap"] = build_exploration_grid(explored)
-    return _compact_state_payload(state) if compact else state
+    with _session_guard(agent_id, touch=False) as rec:
+        pyboy = rec["pyboy"]
+        started_at = rec.get("started_at")
+        if started_at is None:
+            started_at = time.time()
+            rec["started_at"] = started_at
+        state = get_game_state(pyboy, started_at)
+        explored = rec.setdefault("explored", set())
+        explored.add((state.get("mapId", 0), state.get("x", 0), state.get("y", 0)))
+        state["explorationMap"] = build_exploration_grid(explored)
+        return _compact_state_payload(state) if compact else state
 
 
 @app.get("/session/{agent_id}/state/export")
 def session_state_export(agent_id: str):
     """Export current PyBoy save state as raw bytes (for platform save-storage)."""
-    with _sessions_lock:
-        rec = sessions.get(agent_id)
-        if not rec:
-            raise HTTPException(status_code=404, detail="No session for this agent")
-    pyboy = rec["pyboy"]
-    buf = io.BytesIO()
-    try:
-        pyboy.save_state(buf)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Export failed: {e!s}")
-    buf.seek(0)
-    return Response(content=buf.read(), media_type="application/octet-stream")
+    with _session_guard(agent_id, touch=False) as rec:
+        pyboy = rec["pyboy"]
+        buf = io.BytesIO()
+        try:
+            pyboy.save_state(buf)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Export failed: {e!s}")
+        buf.seek(0)
+        return Response(content=buf.read(), media_type="application/octet-stream")
 
 
 @app.get("/sessions")

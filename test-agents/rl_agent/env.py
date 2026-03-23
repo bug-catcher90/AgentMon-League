@@ -10,7 +10,6 @@ from gymnasium import Env, spaces
 from rl_agent.api_client import (
     get_frame,
     get_state,
-    run_action,
     run_action_with_auto_restart,
     start_session,
     stop_session,
@@ -68,6 +67,25 @@ class EmulatorEnv(Env):
         self._step = 0
         self._state_before: dict = {}
         self._visited_map_ids: set = set()
+        self._reward_memory: dict = {"max_pokeballs_seen": 0}
+
+    def _fetch_frame_with_retry(self, agent_id: str, *, attempts: int = 15, delay_s: float = 0.5) -> bytes:
+        last_err: Exception | None = None
+        for _ in range(max(1, attempts)):
+            try:
+                return get_frame(agent_id)
+            except requests.exceptions.HTTPError as e:
+                last_err = e
+                code = e.response.status_code if e.response is not None else None
+                if code in (404, 502, 503, 504):
+                    time.sleep(delay_s)
+                    continue
+                raise
+            except Exception as e:
+                last_err = e
+                time.sleep(delay_s)
+                continue
+        raise RuntimeError(f"Could not fetch frame for agent {agent_id}") from last_err
 
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
@@ -86,21 +104,10 @@ class EmulatorEnv(Env):
         self._recent_screens = np.zeros(OUTPUT_SHAPE, dtype=np.uint8)
         self._recent_actions = np.zeros(3, dtype=np.int8)
         self._visited_map_ids = set()
+        self._reward_memory = {"max_pokeballs_seen": 0}
         state = get_state(self.agent_key) or {}
         self._state_before = state
-        # Retry get_frame: emulator may return 404 briefly after start_session
-        frame_bytes = None
-        for attempt in range(15):
-            try:
-                frame_bytes = get_frame(self._session_agent_id)
-                break
-            except requests.exceptions.HTTPError as e:
-                if e.response is not None and e.response.status_code == 404 and attempt < 14:
-                    time.sleep(0.5)
-                    continue
-                raise
-        if frame_bytes is None:
-            raise RuntimeError("Could not get frame after start. Is the emulator running?")
+        frame_bytes = self._fetch_frame_with_retry(self._session_agent_id)
         obs = build_obs_from_frame_and_state(
             frame_bytes, state, self._recent_screens, self._recent_actions
         )
@@ -128,6 +135,7 @@ class EmulatorEnv(Env):
             self._recent_screens = np.zeros(OUTPUT_SHAPE, dtype=np.uint8)
             self._recent_actions = np.zeros(3, dtype=np.int8)
             self._recent_actions[0] = int(action)
+            self._reward_memory = {"max_pokeballs_seen": 0}
             state_before_for_reward = state_after
         else:
             state_before_for_reward = self._state_before
@@ -137,6 +145,7 @@ class EmulatorEnv(Env):
             state_after,
             step_penalty=True,
             visited_map_ids=self._visited_map_ids,
+            reward_memory=self._reward_memory,
         )
         map_after = state_after.get("mapId")
         if map_after is not None:
@@ -149,9 +158,12 @@ class EmulatorEnv(Env):
         # Use frame from actions response when present (saves one round-trip in prod).
         b64 = result.get("frameBase64")
         if b64:
-            frame_bytes = base64.b64decode(b64)
+            try:
+                frame_bytes = base64.b64decode(b64)
+            except Exception:
+                frame_bytes = self._fetch_frame_with_retry(agent_id, attempts=6, delay_s=0.3)
         else:
-            frame_bytes = get_frame(agent_id)
+            frame_bytes = self._fetch_frame_with_retry(agent_id, attempts=6, delay_s=0.3)
         obs = build_obs_from_frame_and_state(
             frame_bytes, state_after, self._recent_screens, self._recent_actions
         )

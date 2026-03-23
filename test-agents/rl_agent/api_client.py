@@ -7,6 +7,14 @@ import requests
 from rl_agent.config import APP_URL, AGENT_ID, AGENT_KEY, STARTER
 
 
+class ApiClientError(RuntimeError):
+    """Structured API error with HTTP status code."""
+
+    def __init__(self, message: str, *, status_code: int | None = None):
+        super().__init__(message)
+        self.status_code = status_code
+
+
 def get_status(agent_key: str) -> dict:
     """Authenticated emulator status: { state: running|stopped, ... }."""
     r = requests.get(
@@ -166,7 +174,7 @@ def run_action(agent_key: str, action_name: str) -> dict:
         timeout=15,
     )
     if r.status_code != 200:
-        raise RuntimeError(f"Actions failed: {r.status_code} {r.text}")
+        raise ApiClientError(f"Actions failed: {r.status_code} {r.text}", status_code=r.status_code)
     return r.json()
 
 
@@ -191,9 +199,8 @@ def run_action_with_auto_restart(agent_key: str, action_name: str, *, starter: s
     """
     try:
         return run_action(agent_key, action_name)
-    except RuntimeError as e:
-        msg = str(e)
-        if " 404 " not in msg and "404" not in msg:
+    except ApiClientError as e:
+        if e.status_code != 404:
             raise
         restart_data = ensure_session(agent_key, mode="restart", starter=starter)
         resp = run_action(agent_key, action_name)

@@ -43,6 +43,15 @@ EVENT_FLAGS_END = 0xD87E
 ENC_FREQS = 8
 
 
+def _to_int(v, default: int = 0) -> int:
+    try:
+        if v is None:
+            return default
+        return int(v)
+    except (TypeError, ValueError):
+        return default
+
+
 def build_obs_from_frame_and_state(
     frame_bytes: bytes,
     state: dict,
@@ -178,11 +187,11 @@ def state_progress(state: dict) -> float:
     - map id is not treated as inherently good or bad (REWARD_MAP defaults to 0)
     """
     return (
-        state.get("badges", 0) * REWARD_BADGE
-        + state.get("partySize", 0) * REWARD_PARTY
-        + state.get("pokedexOwned", 0) * REWARD_POKEDEX_OWNED
-        + state.get("pokedexSeen", 0) * REWARD_POKEDEX_SEEN
-        + state.get("mapId", 0) * REWARD_MAP
+        _to_int(state.get("badges", 0), 0) * REWARD_BADGE
+        + _to_int(state.get("partySize", 0), 0) * REWARD_PARTY
+        + _to_int(state.get("pokedexOwned", 0), 0) * REWARD_POKEDEX_OWNED
+        + _to_int(state.get("pokedexSeen", 0), 0) * REWARD_POKEDEX_SEEN
+        + _to_int(state.get("mapId", 0), 0) * REWARD_MAP
     )
 
 
@@ -192,6 +201,7 @@ def compute_reward(
     step_penalty: bool = True,
     *,
     visited_map_ids: set | None = None,
+    reward_memory: dict | None = None,
 ) -> float:
     """
     Reward for a transition. Stage-1 (Pallet to Brock) objective-oriented:
@@ -207,14 +217,14 @@ def compute_reward(
     # Extra bonuses around key Pokémon Red gameplay events.
     # These sit on top of the generic progress delta so that rare milestones
     # (gym wins, catches, evolutions) stand out clearly in the return signal.
-    badges_before = state_before.get("badges", 0)
-    badges_after = state_after.get("badges", 0)
-    pokedex_owned_before = state_before.get("pokedexOwned", 0)
-    pokedex_owned_after = state_after.get("pokedexOwned", 0)
-    party_before = state_before.get("partySize", 0)
-    party_after = state_after.get("partySize", 0)
-    in_battle_before = state_before.get("inBattle", 0)
-    in_battle_after = state_after.get("inBattle", 0)
+    badges_before = _to_int(state_before.get("badges", 0), 0)
+    badges_after = _to_int(state_after.get("badges", 0), 0)
+    pokedex_owned_before = _to_int(state_before.get("pokedexOwned", 0), 0)
+    pokedex_owned_after = _to_int(state_after.get("pokedexOwned", 0), 0)
+    party_before = _to_int(state_before.get("partySize", 0), 0)
+    party_after = _to_int(state_after.get("partySize", 0), 0)
+    in_battle_before = _to_int(state_before.get("inBattle", 0), 0)
+    in_battle_after = _to_int(state_after.get("inBattle", 0), 0)
     map_before = state_before.get("mapId")
     map_after = state_after.get("mapId")
     levels_gained = _levels_gained(state_before, state_after)
@@ -267,8 +277,16 @@ def compute_reward(
             if bonus != 0:
                 r += bonus
 
-    if pokeballs_after > pokeballs_before and REWARD_BUY_POKEBALLS != 0:
-        r += (pokeballs_after - pokeballs_before) * REWARD_BUY_POKEBALLS
+    if REWARD_BUY_POKEBALLS != 0:
+        # Anti-farming: reward only when hitting a new all-time-high Poké Ball
+        # count in this episode (tracked via reward_memory).
+        max_seen = pokeballs_before
+        if reward_memory is not None:
+            max_seen = _to_int(reward_memory.get("max_pokeballs_seen", pokeballs_before), pokeballs_before)
+        if pokeballs_after > max_seen:
+            r += (pokeballs_after - max_seen) * REWARD_BUY_POKEBALLS
+        if reward_memory is not None:
+            reward_memory["max_pokeballs_seen"] = max(max_seen, pokeballs_after)
 
     if REWARD_FIRST_THREE_CATCHES != 0:
         reached_3_before = (pokedex_owned_before >= 3 or party_before >= 3)

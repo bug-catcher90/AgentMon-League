@@ -15,7 +15,6 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from rl_agent.api_client import (
     get_frame,
     get_state,
-    run_action,
     run_action_with_auto_restart,
     save_session,
     stop_session,
@@ -196,6 +195,7 @@ def run_play_loop(
     agent_key: str,
     model_path: str,
     *,
+    starter: str | None = None,
     step_interval: float | None = None,
     on_exit_stop: bool = True,
     on_exit_log_run: bool = True,
@@ -222,10 +222,20 @@ def run_play_loop(
     step_index = 0
     state_before: dict = {}
 
+    def _fetch_frame_with_retry(aid: str, attempts: int = 6, delay_s: float = 0.3) -> bytes:
+        last_err: Exception | None = None
+        for _ in range(max(1, attempts)):
+            try:
+                return get_frame(aid)
+            except Exception as e:
+                last_err = e
+                time.sleep(delay_s)
+        raise RuntimeError(f"Could not fetch frame for agent {aid}") from last_err
+
     try:
         while True:
             try:
-                frame_bytes = get_frame(agent_id)
+                frame_bytes = _fetch_frame_with_retry(agent_id)
                 state = get_state(agent_key) or {}
             except Exception as e:
                 print(f"Frame/state error: {e}", file=sys.stderr)
@@ -246,7 +256,7 @@ def run_play_loop(
             recent_actions[0] = action_idx
 
             try:
-                result = run_action_with_auto_restart(agent_key, action_name)
+                result = run_action_with_auto_restart(agent_key, action_name, starter=starter)
                 _state = result.get("state") or {}
                 if result.get("_session_restarted"):
                     # Reset visual/action history so the next obs isn't contaminated
