@@ -125,7 +125,9 @@ class EmulatorEnv(Env):
             visited_map_ids=self._visited_map_ids,
         )
         map_after = state_after.get("mapId")
-        if map_after is not None and map_after in (41, 42, 55):
+        if map_after is not None:
+            # Track all visited maps in this episode so exploration-map reward
+            # is granted once per map, not per doorway transition.
             self._visited_map_ids.add(map_after)
         self._state_before = state_after
 

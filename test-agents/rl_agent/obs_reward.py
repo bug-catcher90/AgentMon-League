@@ -283,7 +283,13 @@ def compute_reward(
         map_before = state_before.get("mapId")
         map_after = state_after.get("mapId")
         if map_after != map_before and map_after is not None:
-            r += REWARD_EXPLORATION_MAP
+            # Avoid doorway ping-pong exploit (e.g. Oak's Lab <-> Pallet Town):
+            # reward map exploration only on first visit per episode when the caller
+            # provides visited_map_ids; otherwise keep legacy behavior.
+            if visited_map_ids is None:
+                r += REWARD_EXPLORATION_MAP
+            elif map_after not in visited_map_ids:
+                r += REWARD_EXPLORATION_MAP
 
     if step_penalty and REWARD_STEP_PENALTY != 0:
         r += REWARD_STEP_PENALTY
