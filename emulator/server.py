@@ -268,11 +268,30 @@ class StartBody(BaseModel):
 
 class StepBody(BaseModel):
     action: str  # up, down, left, right, a, b, start, select, pass
+    compact: bool = False  # omit heavy fields in response state
 
 
 class ActionsBody(BaseModel):
     actions: list[str]  # sequence of actions to run without returning until done
     speed: int | None = None  # override session speed for this batch (optional)
+    compact: bool = False  # omit heavy fields in response state
+
+
+def _compact_state_payload(state: dict) -> dict:
+    """
+    Return a lighter state payload for LLM/query clients.
+    Drops large arrays and trims noisy subfields while keeping core navigation info.
+    """
+    out = dict(state)
+    out.pop("eventFlags", None)
+    out.pop("explorationMap", None)
+    local = out.get("localMap")
+    if isinstance(local, dict):
+        local_out = dict(local)
+        # NPC list can become large/noisy for prompt-driven agents; keep map tiles.
+        local_out["npcs"] = []
+        out["localMap"] = local_out
+    return out
 
 
 @app.post("/session/start")
@@ -434,8 +453,9 @@ def session_step(agent_id: str, body: StepBody):
 
     feedback = compute_step_feedback(name, state_before, state_after)
     rec["last_step_at"] = time.time()
+    response_state = _compact_state_payload(state_after) if body.compact else state_after
 
-    return {"ok": True, "action": name, "state": state_after, "feedback": feedback}
+    return {"ok": True, "action": name, "state": response_state, "feedback": feedback}
 
 
 @app.post("/session/{agent_id}/actions")
@@ -507,6 +527,7 @@ def session_actions(agent_id: str, body: ActionsBody):
     explored.add((state.get("mapId", 0), state.get("x", 0), state.get("y", 0)))
     state["explorationMap"] = build_exploration_grid(explored)
     rec["last_step_at"] = time.time()
+    response_state = _compact_state_payload(state) if body.compact else state
     feedback = None
     if merged_effects:
         feedback = {
@@ -516,7 +537,7 @@ def session_actions(agent_id: str, body: ActionsBody):
     return {
         "ok": True,
         "actionsExecuted": len(body.actions),
-        "state": state,
+        "state": response_state,
         **({"feedback": feedback} if feedback else {}),
     }
 
@@ -596,7 +617,7 @@ def session_status(agent_id: str):
 
 
 @app.get("/session/{agent_id}/state")
-def session_state(agent_id: str):
+def session_state(agent_id: str, compact: bool = False):
     """Current game state (position, map, party, badges, pokedex, eventFlags, levels, explorationMap) for agent/observer."""
     with _sessions_lock:
         rec = sessions.get(agent_id)
@@ -612,7 +633,7 @@ def session_state(agent_id: str):
     explored = rec.setdefault("explored", set())
     explored.add((state.get("mapId", 0), state.get("x", 0), state.get("y", 0)))
     state["explorationMap"] = build_exploration_grid(explored)
-    return state
+    return _compact_state_payload(state) if compact else state
 
 
 @app.get("/session/{agent_id}/state/export")

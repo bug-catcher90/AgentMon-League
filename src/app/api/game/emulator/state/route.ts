@@ -13,9 +13,13 @@ export async function GET(req: Request) {
   if (!agent) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const { searchParams } = new URL(req.url);
+  const compactRaw = (searchParams.get("compact") ?? "").toLowerCase();
+  const compact = compactRaw === "1" || compactRaw === "true" || compactRaw === "yes";
+  const qs = compact ? "?compact=true" : "";
 
   try {
-    const res = await fetch(`${EMULATOR_URL}/session/${agent.id}/state`, {
+    const res = await fetch(`${EMULATOR_URL}/session/${agent.id}/state${qs}`, {
       cache: "no-store",
     });
     const data = await res.json().catch(() => ({}));

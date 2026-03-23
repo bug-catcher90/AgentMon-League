@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { actions?: unknown; speed?: number };
+  let body: { actions?: unknown; speed?: number; compact?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -30,6 +30,7 @@ export async function POST(req: Request) {
     .map((a) => (typeof a === "string" ? a.toLowerCase().trim() : ""))
     .filter((a) => a && VALID_ACTIONS.includes(a));
   const speed = typeof body.speed === "number" && body.speed >= 0 ? body.speed : undefined;
+  const compact = body.compact === true;
 
   try {
     const res = await fetch(`${EMULATOR_URL}/session/${agent.id}/actions`, {
@@ -38,6 +39,7 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         actions,
         ...(speed !== undefined && { speed }),
+        ...(compact && { compact: true }),
       }),
     });
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;

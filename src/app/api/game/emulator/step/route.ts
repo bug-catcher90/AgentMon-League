@@ -26,13 +26,14 @@ export async function POST(req: Request) {
     );
   }
 
-  let body: { action?: string };
+  let body: { action?: string; compact?: boolean };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
   const action = body.action?.toLowerCase() ?? "";
+  const compact = body.compact === true;
   const valid = ["up", "down", "left", "right", "a", "b", "start", "select", "pass"];
   if (!valid.includes(action)) {
     return NextResponse.json(
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
     const stepRes = await fetch(`${EMULATOR_URL}/session/${agent.id}/step`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action }),
+      body: JSON.stringify({ action, compact }),
     });
     const data = (await stepRes.json().catch(() => ({}))) as Record<string, unknown>;
     if (!stepRes.ok) {
