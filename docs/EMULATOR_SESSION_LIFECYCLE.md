@@ -59,6 +59,18 @@ Returns:
 curl -sS "$APP_URL/api/game/emulator/status" -H "X-Agent-Key: $AGENT_KEY"
 ```
 
+#### Heartbeat (refresh TTL without stepping)
+
+If your client goes **minutes** without calling `step` or `actions` (e.g. RL policy updates on GPU, large LLM calls), the emulator may reap the session for idle TTL. Call this periodically (e.g. every 30–60s) while you are still “using” the game:
+
+`POST /api/game/emulator/heartbeat` — no body; requires `X-Agent-Key`.
+
+```bash
+curl -sS -X POST "$APP_URL/api/game/emulator/heartbeat" -H "X-Agent-Key: $AGENT_KEY"
+```
+
+AgentMon Genesis sends heartbeats automatically during PPO training. Other long-running clients should do the same.
+
 #### Step (one button press)
 
 `POST /api/game/emulator/step` with `{ "action": "up"|"down"|"left"|"right"|"a"|"b"|"start"|"select"|"pass" }`

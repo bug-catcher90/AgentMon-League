@@ -3,6 +3,7 @@
 import os
 import signal
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from rl_agent.api_client import (
     get_frame,
     get_state,
+    ping_session,
     run_action_with_auto_restart,
     save_session,
     stop_session,
@@ -58,6 +60,32 @@ class _PlayLearnCallback(BaseCallback):
         self.save_game_every = save_game_every
         self.checkpoint_dir = checkpoint_dir
         self.last_save_game_step = 0
+        self._hb_stop: threading.Event | None = None
+        self._hb_thread: threading.Thread | None = None
+
+    def _on_training_start(self) -> None:
+        # PPO spends minutes in policy updates without env steps; emulator TTL would reap the session.
+        interval = max(15, int(os.environ.get("RL_SESSION_HEARTBEAT_SECONDS", "45")))
+        self._hb_stop = threading.Event()
+
+        def _loop() -> None:
+            stop = self._hb_stop
+            if stop is None:
+                return
+            while not stop.wait(interval):
+                try:
+                    ping_session(self.agent_key)
+                except Exception:
+                    pass
+
+        self._hb_thread = threading.Thread(target=_loop, name="session-heartbeat", daemon=True)
+        self._hb_thread.start()
+
+    def _on_training_end(self) -> None:
+        if self._hb_stop is not None:
+            self._hb_stop.set()
+        self._hb_thread = None
+        self._hb_stop = None
 
     def _on_step(self) -> bool:
         global _play_learn_stop_requested

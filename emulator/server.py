@@ -648,6 +648,20 @@ def session_recent_actions(agent_id: str):
     return {"recent_actions": list(recent)}
 
 
+@app.post("/session/{agent_id}/heartbeat")
+def session_heartbeat(agent_id: str):
+    """
+    Refresh session TTL without advancing the game.
+    Used when the client is busy (e.g. PPO policy update) and cannot call step/actions for minutes.
+    """
+    with _sessions_lock:
+        rec = sessions.get(agent_id)
+        if not rec:
+            raise HTTPException(status_code=404, detail="No session for this agent")
+        _touch_session(rec)
+    return {"ok": True, "agent_id": agent_id}
+
+
 @app.get("/session/{agent_id}/status")
 def session_status(agent_id: str):
     """

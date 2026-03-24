@@ -15,6 +15,20 @@ class ApiClientError(RuntimeError):
         self.status_code = status_code
 
 
+def ping_session(agent_key: str) -> None:
+    """Refresh emulator session lease without advancing the game (TTL heartbeat)."""
+    r = requests.post(
+        f"{APP_URL}/api/game/emulator/heartbeat",
+        headers={"X-Agent-Key": agent_key},
+        timeout=8,
+    )
+    if r.status_code != 200:
+        raise ApiClientError(
+            f"Heartbeat failed: {r.status_code} {r.text[:200]}",
+            status_code=r.status_code,
+        )
+
+
 def get_status(agent_key: str) -> dict:
     """Authenticated emulator status: { state: running|stopped, ... }."""
     r = requests.get(
