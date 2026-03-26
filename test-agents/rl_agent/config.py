@@ -95,3 +95,5 @@ REWARD_VISIT_POKECENTER = float(os.environ.get("RL_REWARD_VISIT_POKECENTER", "4.
 REWARD_VISIT_MART = float(os.environ.get("RL_REWARD_VISIT_MART", "2.0"))
 REWARD_BUY_POKEBALLS = float(os.environ.get("RL_REWARD_BUY_POKEBALLS", "1.0"))
 REWARD_FIRST_THREE_CATCHES = float(os.environ.get("RL_REWARD_FIRST_THREE_CATCHES", "8.0"))
+# Keep emulator session alive between env steps (PPO updates, frame outages). Must stay below server TTL.
+RL_SESSION_HEARTBEAT_SECONDS = max(15, int(os.environ.get("RL_SESSION_HEARTBEAT_SECONDS", "45")))

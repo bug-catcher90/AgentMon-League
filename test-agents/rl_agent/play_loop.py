@@ -63,9 +63,16 @@ class _PlayLearnCallback(BaseCallback):
         self._hb_stop: threading.Event | None = None
         self._hb_thread: threading.Thread | None = None
 
+    def _on_rollout_end(self) -> None:
+        """PPO is about to train with no env steps; refresh lease immediately."""
+        try:
+            ping_session(self.agent_key)
+        except Exception:
+            pass
+
     def _on_training_start(self) -> None:
         # PPO spends minutes in policy updates without env steps; emulator TTL would reap the session.
-        interval = max(15, int(os.environ.get("RL_SESSION_HEARTBEAT_SECONDS", "45")))
+        interval = RL_SESSION_HEARTBEAT_SECONDS
         self._hb_stop = threading.Event()
 
         def _loop() -> None:
@@ -129,6 +136,7 @@ def run_play_with_learning(
 
     from rl_agent.config import (
         PLAY_SAVE_EVERY_STEPS,
+        RL_SESSION_HEARTBEAT_SECONDS,
         SAVE_EVERY_STEPS,
     )
 
@@ -234,7 +242,7 @@ def run_play_loop(
     If on_exit_stop, calls stop_session(agent_key) on exit.
     If on_exit_log_run, appends this run to play_runs.jsonl.
     """
-    from rl_agent.config import PLAY_SAVE_EVERY_STEPS
+    from rl_agent.config import PLAY_SAVE_EVERY_STEPS, RL_SESSION_HEARTBEAT_SECONDS
     save_every_steps = PLAY_SAVE_EVERY_STEPS
 
     interval = (
@@ -249,6 +257,7 @@ def run_play_loop(
     recent_actions = np.zeros(3, dtype=np.int8)
     step_index = 0
     state_before: dict = {}
+    last_loop_ping = time.time()
 
     def _fetch_frame_with_retry(aid: str, attempts: int = 6, delay_s: float = 0.3) -> bytes:
         last_err: Exception | None = None
@@ -262,6 +271,13 @@ def run_play_loop(
 
     try:
         while True:
+            now = time.time()
+            if now - last_loop_ping >= RL_SESSION_HEARTBEAT_SECONDS * 0.85:
+                try:
+                    ping_session(agent_key)
+                except Exception:
+                    pass
+                last_loop_ping = now
             try:
                 frame_bytes = _fetch_frame_with_retry(agent_id)
                 state = get_state(agent_key) or {}
@@ -285,6 +301,7 @@ def run_play_loop(
 
             try:
                 result = run_action_with_auto_restart(agent_key, action_name, starter=starter)
+                last_loop_ping = time.time()
                 _state = result.get("state") or {}
                 if result.get("_session_restarted"):
                     # Reset visual/action history so the next obs isn't contaminated

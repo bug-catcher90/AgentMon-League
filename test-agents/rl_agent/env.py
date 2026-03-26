@@ -10,11 +10,12 @@ from gymnasium import Env, spaces
 from rl_agent.api_client import (
     get_frame,
     get_state,
+    ping_session,
     run_action_with_auto_restart,
     start_session,
     stop_session,
 )
-from rl_agent.config import EPISODE_MAX_STEPS
+from rl_agent.config import EPISODE_MAX_STEPS, RL_SESSION_HEARTBEAT_SECONDS
 from rl_agent.obs_reward import (
     COORDS_PAD,
     ENC_FREQS,
@@ -68,6 +69,18 @@ class EmulatorEnv(Env):
         self._state_before: dict = {}
         self._visited_map_ids: set = set()
         self._reward_memory: dict = {"max_pokeballs_seen": 0}
+        self._last_lease_touch: float = 0.0
+
+    def _maybe_lease_ping(self) -> None:
+        """If wall-clock gap since last known lease touch is large, ping (covers PPO gaps + callback gaps)."""
+        now = time.time()
+        if now - self._last_lease_touch < RL_SESSION_HEARTBEAT_SECONDS * 0.85:
+            return
+        try:
+            ping_session(self.agent_key)
+        except Exception:
+            pass
+        self._last_lease_touch = now
 
     def _fetch_frame_with_retry(self, agent_id: str, *, attempts: int = 15, delay_s: float = 0.5) -> bytes:
         last_err: Exception | None = None
@@ -105,6 +118,7 @@ class EmulatorEnv(Env):
         self._recent_actions = np.zeros(3, dtype=np.int8)
         self._visited_map_ids = set()
         self._reward_memory = {"max_pokeballs_seen": 0}
+        self._last_lease_touch = time.time()
         state = get_state(self.agent_key) or {}
         self._state_before = state
         frame_bytes = self._fetch_frame_with_retry(self._session_agent_id)
@@ -121,6 +135,7 @@ class EmulatorEnv(Env):
         self._recent_actions = np.roll(self._recent_actions, 1)
         self._recent_actions[0] = action
 
+        self._maybe_lease_ping()
         result = run_action_with_auto_restart(self.agent_key, action_name, starter=self.starter)
         state_after = result.get("state") or {}
         self._step += 1
@@ -153,6 +168,7 @@ class EmulatorEnv(Env):
             # is granted once per map, not per doorway transition.
             self._visited_map_ids.add(map_after)
         self._state_before = state_after
+        self._last_lease_touch = time.time()
 
         agent_id = self._session_agent_id or self.agent_id
         # Use frame from actions response when present (saves one round-trip in prod).
