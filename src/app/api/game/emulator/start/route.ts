@@ -1,5 +1,6 @@
 import { getAgentFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { setEmulatorStartIntent } from "@/lib/emulator-session-intent";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
 
@@ -12,6 +13,36 @@ export type StarterChoice = (typeof VALID_STARTERS)[number];
 
 const VALID_MODES = ["new", "load", "restart"] as const;
 type StartMode = (typeof VALID_MODES)[number];
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+
+function normalizeSpeed(raw: unknown): number | string | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return Math.max(0, Math.floor(raw));
+  }
+  if (typeof raw === "string") {
+    const trimmed = raw.trim().toLowerCase();
+    if (!trimmed) return undefined;
+    if (trimmed === "unlimited" || trimmed === "max") return "unlimited";
+    if (/^\d+$/.test(trimmed)) {
+      return Math.max(0, parseInt(trimmed, 10));
+    }
+  }
+  return undefined;
+}
+
+async function waitForSessionStopped(agentId: string, timeoutMs = 5000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const statusRes = await fetch(`${EMULATOR_URL}/session/${encodeURIComponent(agentId)}/status`, { cache: "no-store" });
+      if (statusRes.status === 404) return;
+    } catch {
+      // If emulator is temporarily unreachable, allow retry until timeout.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  }
+}
 
 /**
  * POST /api/game/emulator/start
@@ -23,9 +54,9 @@ type StartMode = (typeof VALID_MODES)[number];
  */
 export async function POST(req: Request) {
   try {
-    if (!EMULATOR_URL || EMULATOR_URL.includes("127.0.0.1")) {
+    if (!EMULATOR_URL || (IS_PRODUCTION && EMULATOR_URL.includes("127.0.0.1"))) {
       return NextResponse.json(
-        { error: "EMULATOR_URL not set or still default. Set it to the Railway emulator service URL in app Variables." },
+        { error: "EMULATOR_URL not set. Set it to the emulator service URL in environment variables." },
         { status: 503 }
       );
     }
@@ -74,9 +105,7 @@ async function handleStart(req: Request) {
     if (raw && VALID_STARTERS.includes(raw as StarterChoice)) {
       starter = raw as StarterChoice;
     }
-    if (body.speed !== undefined) {
-      speed = typeof body.speed === "number" ? body.speed : (body.speed as string);
-    }
+    speed = normalizeSpeed(body.speed);
     if (typeof body.loadSessionId === "string" && body.loadSessionId.trim()) {
       loadSessionId = body.loadSessionId.trim();
     }
@@ -96,6 +125,12 @@ async function handleStart(req: Request) {
       { status: 400 }
     );
   }
+
+  setEmulatorStartIntent(agent.id, {
+    ...(starter && { starter }),
+    ...(speed !== undefined && { speed }),
+    ...(loadSessionId && { loadSessionId }),
+  });
 
   // Enforce global session cap so the server doesn't run out of resources
   if (MAX_CONCURRENT_SESSIONS > 0) {
@@ -143,6 +178,7 @@ async function handleStart(req: Request) {
     if (mode === "restart") {
       try {
         await fetch(`${EMULATOR_URL}/session/${agent.id}/stop`, { method: "POST" });
+        await waitForSessionStopped(agent.id, 5000);
       } catch {
         // ignore; start may still succeed if session didn't exist
       }

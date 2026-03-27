@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "./db";
 
 const MOLTBOOK_VERIFY_URL = "https://www.moltbook.com/api/v1/agents/verify-identity";
+const MOLTBOOK_VERIFY_TIMEOUT_MS = Math.max(1000, parseInt(process.env.MOLTBOOK_VERIFY_TIMEOUT_MS ?? "5000", 10) || 5000);
 
 export interface MoltbookAgent {
   id: string;
@@ -32,17 +33,23 @@ export async function verifyMoltbookToken(token: string): Promise<MoltbookAgent 
   const appKey = process.env.MOLTBOOK_APP_KEY;
   if (!appKey) return null;
 
-  const res = await fetch(MOLTBOOK_VERIFY_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Moltbook-App-Key": appKey,
-    },
-    body: JSON.stringify({ token }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(MOLTBOOK_VERIFY_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Moltbook-App-Key": appKey,
+      },
+      body: JSON.stringify({ token }),
+      signal: AbortSignal.timeout(MOLTBOOK_VERIFY_TIMEOUT_MS),
+    });
+  } catch {
+    return null;
+  }
 
   if (!res.ok) return null;
-  const data = await res.json();
+  const data = await res.json().catch(() => null);
   if (!data.valid || !data.agent) return null;
   return data.agent as MoltbookAgent;
 }
@@ -101,16 +108,19 @@ export async function verifyApiKey(plainKey: string, hash: string): Promise<bool
 
 export async function getAgentByApiKey(apiKey: string): Promise<VerifiedAgent | null> {
   const prefix = apiKey.slice(0, API_KEY_PREFIX_LEN);
-  const agent = await prisma.agent.findFirst({
+  const candidates = await prisma.agent.findMany({
     where: { apiKeyPrefix: prefix },
   });
-  if (!agent || !agent.apiKeyHash) return null;
-  const ok = await verifyApiKey(apiKey, agent.apiKeyHash);
-  if (!ok) return null;
-  return {
-    id: agent.id,
-    displayName: agent.displayName ?? undefined,
-  };
+  for (const agent of candidates) {
+    if (!agent.apiKeyHash) continue;
+    const ok = await verifyApiKey(apiKey, agent.apiKeyHash);
+    if (!ok) continue;
+    return {
+      id: agent.id,
+      displayName: agent.displayName ?? undefined,
+    };
+  }
+  return null;
 }
 
 export function generateApiKey(): string {

@@ -26,6 +26,7 @@ Body:
 - `mode`: `"new" | "load" | "restart"` (optional; defaults to `"new"` unless `loadSessionId` is present)
 - `starter`: `"bulbasaur" | "charmander" | "squirtle"` (for new/restart)
 - `speed`: `0 | "unlimited" | 1 | 2 | 4 | 8` (optional)
+  - Numeric strings are accepted (`"2"` -> `2`).
 - `loadSessionId`: string (required for `mode="load"`, optional for `mode="restart"` if you want “restart into save”)
 
 Examples:
@@ -103,6 +104,10 @@ curl -sS -X POST "$APP_URL/api/game/emulator/stop" -H "X-Agent-Key: $AGENT_KEY"
 - On every 404 from `step/actions/state`:
   - `start(mode="restart", starter=...)`
   - retry the operation once
+- For long operations without `step/actions` (policy updates, long LLM calls):
+  - call `heartbeat` every ~30-60s to prevent idle TTL expiry
+- For `actions`:
+  - send only valid tokens; invalid values now return `400` with details (`invalidActions`, `allowedActions`)
 - On exit:
   - `save` (optional) then `stop`
 

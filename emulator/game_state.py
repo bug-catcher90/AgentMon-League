@@ -309,9 +309,10 @@ def get_party_levels(pyboy) -> list:
 
 
 def get_party(pyboy) -> list:
-    """Read party Pokémon from WRAM. Returns list of { speciesId, level } (up to 6) for profile/API.
+    """Read party Pokémon from WRAM. Returns list of { speciesId, speciesRomId, speciesCanonicalId, level }.
     Reads species from the 44-byte struct (first byte per slot); falls back to D164–D169 list.
-    Always sends speciesId as 'species-<byte>' so the API can resolve using the canonical ROM→id mapping."""
+    speciesId is legacy ('species-<byte>') for backward compatibility.
+    speciesCanonicalId is the stable lowercase species name when known."""
     out = []
     try:
         mem = pyboy.memory
@@ -329,8 +330,14 @@ def get_party(pyboy) -> list:
             if not idx:
                 idx = mem[addr_list] & 0xFF
             species_id = f"species-{idx}" if idx else "unknown"
+            canonical_id = GEN1_ROM_SPECIES_TO_ID.get(idx)
             lv = levels[i] if i < len(levels) else 1
-            out.append({"speciesId": species_id, "level": int(lv)})
+            out.append({
+                "speciesId": species_id,
+                "speciesRomId": int(idx),
+                "speciesCanonicalId": canonical_id,
+                "level": int(lv),
+            })
     except Exception:
         pass
     return out
@@ -406,6 +413,7 @@ def get_game_state(pyboy, session_started_at: float | None = None) -> dict:
 
     map_name = MAP_NAMES.get(map_id, f"Map {map_id}")
     out = {
+        "schemaVersion": "2026-03-27",
         "mapId": int(map_id),
         "mapName": map_name,
         "x": int(x),
@@ -435,6 +443,7 @@ def get_game_state(pyboy, session_started_at: float | None = None) -> dict:
 def _default_state(session_started_at: float | None = None) -> dict:
     event_flags_len = (EVENT_FLAGS_END - EVENT_FLAGS_START) * 8
     s = {
+        "schemaVersion": "2026-03-27",
         "mapId": 0, "mapName": "Unknown", "x": 0, "y": 0, "partySize": 0, "badges": 0,
         "pokedexOwned": 0, "pokedexSeen": 0, "inBattle": 0, "battleKind": "none",
         "eventFlags": [0] * event_flags_len,

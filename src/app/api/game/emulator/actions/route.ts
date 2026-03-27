@@ -2,6 +2,7 @@ import { getAgentFromRequest } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { logLiveActivityFromStep } from "@/lib/live-activity";
+import { getEmulatorStartIntent } from "@/lib/emulator-session-intent";
 
 const EMULATOR_URL = process.env.EMULATOR_URL ?? "http://127.0.0.1:8765";
 
@@ -26,9 +27,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
   const rawActions = Array.isArray(body.actions) ? body.actions : [];
-  const actions = rawActions
-    .map((a) => (typeof a === "string" ? a.toLowerCase().trim() : ""))
-    .filter((a) => a && VALID_ACTIONS.includes(a));
+  if (rawActions.length === 0) {
+    return NextResponse.json({ error: "actions must be a non-empty array" }, { status: 400 });
+  }
+  const invalidActions: Array<{ index: number; value: unknown }> = [];
+  const actions = rawActions.map((a, index) => {
+    const normalized = typeof a === "string" ? a.toLowerCase().trim() : "";
+    if (!normalized || !VALID_ACTIONS.includes(normalized)) {
+      invalidActions.push({ index, value: a });
+    }
+    return normalized;
+  });
+  if (invalidActions.length > 0) {
+    return NextResponse.json(
+      { error: "Invalid actions provided", allowedActions: VALID_ACTIONS, invalidActions },
+      { status: 400 }
+    );
+  }
   const speed = typeof body.speed === "number" && body.speed >= 0 ? body.speed : undefined;
   const compact = body.compact === true;
 
@@ -47,11 +62,21 @@ export async function POST(req: Request) {
     // Self-heal: if emulator lost the session (404), restart and retry once.
     if (!res.ok && res.status === 404) {
       const agentKeyHeader = req.headers.get("X-Agent-Key") ?? "";
+      const moltbookHeader = req.headers.get("X-Moltbook-Identity") ?? "";
+      const intent = getEmulatorStartIntent(agent.id);
+      const restartHeaders: Record<string, string> = { "Content-Type": "application/json" };
+      if (agentKeyHeader) restartHeaders["X-Agent-Key"] = agentKeyHeader;
+      if (moltbookHeader) restartHeaders["X-Moltbook-Identity"] = moltbookHeader;
       const origin = new URL(req.url).origin;
       const restartRes = await fetch(`${origin}/api/game/emulator/start`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Agent-Key": agentKeyHeader },
-        body: JSON.stringify({ mode: "restart" }),
+        headers: restartHeaders,
+        body: JSON.stringify({
+          mode: "restart",
+          ...(intent?.starter && { starter: intent.starter }),
+          ...(intent?.speed !== undefined && { speed: intent.speed }),
+          ...(intent?.loadSessionId && { loadSessionId: intent.loadSessionId }),
+        }),
       });
 
       if (restartRes.ok) {

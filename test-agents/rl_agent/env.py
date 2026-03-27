@@ -71,6 +71,15 @@ class EmulatorEnv(Env):
         self._reward_memory: dict = {"max_pokeballs_seen": 0}
         self._last_lease_touch: float = 0.0
 
+    def _wait_until_stopped(self, timeout_s: float = 6.0, poll_s: float = 0.2) -> bool:
+        deadline = time.time() + timeout_s
+        while time.time() < deadline:
+            status = get_status(self.agent_key) or {}
+            if str(status.get("state") or "").lower() == "stopped":
+                return True
+            time.sleep(poll_s)
+        return False
+
     def _maybe_lease_ping(self) -> None:
         """If wall-clock gap since last known lease touch is large, ping (covers PPO gaps + callback gaps)."""
         now = time.time()
@@ -103,14 +112,19 @@ class EmulatorEnv(Env):
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
         # End previous session so each episode is a fresh game (emulator only allows one session per agent)
+        still_running = False
         try:
             stop_session(self.agent_key)
+            still_running = not self._wait_until_stopped(timeout_s=6.0, poll_s=0.2)
         except Exception:
-            pass
+            # If stop fails (transient network/restart), force lifecycle reset via mode=restart.
+            still_running = True
         if self.load_session_id:
-            start_data = start_session(self.agent_key, load_session_id=self.load_session_id)
+            start_data = start_session(self.agent_key, load_session_id=self.load_session_id, mode="load")
+        elif still_running:
+            start_data = start_session(self.agent_key, starter=self.starter, mode="restart")
         else:
-            start_data = start_session(self.agent_key, starter=self.starter)
+            start_data = start_session(self.agent_key, starter=self.starter, mode="new")
         # Use agentId from start response (correct after DB reset when .env has stale AGENT_ID)
         self._session_agent_id = start_data.get("agentId") or self.agent_id
         self._step = 0

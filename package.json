@@ -14,7 +14,8 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:push": "prisma db push",
-    "sync-pokeapi": "tsx scripts/sync-pokeapi.ts"
+    "sync-pokeapi": "tsx scripts/sync-pokeapi.ts",
+    "test": "vitest run"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

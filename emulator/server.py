@@ -15,6 +15,9 @@ import io
 import logging
 import os
 import time
+import base64
+import binascii
+import uuid
 from collections import deque
 from contextlib import contextmanager
 from pathlib import Path
@@ -70,6 +73,7 @@ ACTION_FREQ = max(1, int(os.environ.get("EMULATOR_ACTION_FREQ", "6")))  # ticks 
 # Session liveness / reclamation
 SESSION_TTL_SECONDS = max(5, int(os.environ.get("EMULATOR_SESSION_TTL_SECONDS", "180")))
 SESSION_REAPER_INTERVAL_SECONDS = max(1, int(os.environ.get("EMULATOR_SESSION_REAPER_INTERVAL_SECONDS", "10")))
+MAX_INITIAL_STATE_BYTES = max(4096, int(os.environ.get("EMULATOR_MAX_INITIAL_STATE_BYTES", "2097152")))
 
 
 def _valid_actions():
@@ -98,6 +102,28 @@ _session_start_locks: dict[str, threading.Lock] = {}  # agent_id -> serialize em
 
 def _now() -> float:
     return time.time()
+
+
+def _new_session_id() -> str:
+    return uuid.uuid4().hex
+
+
+def _normalize_speed(raw_speed: int | str | None) -> int:
+    if raw_speed is None:
+        return 0
+    if isinstance(raw_speed, str):
+        s = raw_speed.strip().lower()
+        if s in ("", "0", "unlimited", "max"):
+            return 0
+        if s.isdigit():
+            raw_speed = int(s)
+        else:
+            return 0
+    if isinstance(raw_speed, int):
+        if raw_speed <= 0:
+            return 0
+        return min(raw_speed, 8)
+    return 0
 
 
 def _touch_session(rec: dict, now: float | None = None) -> None:
@@ -367,11 +393,23 @@ def session_start(body: StartBody):
     # (two concurrent starts for same agent previously could both create and one
     # would overwrite the other session record).
     with start_lock:
-        with _sessions_lock:
-            existing = sessions.get(agent_id)
-            if existing:
-                _touch_session(existing)
-                return {"ok": True, "agent_id": agent_id, "message": "Session already exists"}
+        wait_deadline = _now() + 4.0
+        while True:
+            with _sessions_lock:
+                existing = sessions.get(agent_id)
+                if not existing:
+                    break
+                if not existing.get("pending_stop"):
+                    _touch_session(existing)
+                    return {
+                        "ok": True,
+                        "agent_id": agent_id,
+                        "session_id": existing.get("session_id"),
+                        "message": "Session already exists",
+                    }
+            if _now() >= wait_deadline:
+                raise HTTPException(status_code=409, detail="Session restart in progress; retry shortly")
+            time.sleep(0.05)
 
         rom = _rom_path()
         if not rom.exists():
@@ -395,12 +433,22 @@ def session_start(body: StartBody):
 
         init_state_used = None
         if body.initial_state_base64:
-            import base64
             try:
-                state_bytes = base64.b64decode(body.initial_state_base64)
+                state_bytes = base64.b64decode(body.initial_state_base64, validate=True)
+                if len(state_bytes) > MAX_INITIAL_STATE_BYTES:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"initial_state_base64 too large (max {MAX_INITIAL_STATE_BYTES} bytes)",
+                    )
                 pyboy.load_state(io.BytesIO(state_bytes))
+            except HTTPException:
+                _safe_stop_pyboy(pyboy)
+                raise
+            except (binascii.Error, ValueError) as e:
+                _safe_stop_pyboy(pyboy)
+                raise HTTPException(status_code=400, detail=f"Invalid initial_state_base64: {e!s}")
             except Exception as e:
-                pyboy.close()
+                _safe_stop_pyboy(pyboy)
                 raise HTTPException(status_code=400, detail=f"Invalid initial_state_base64: {e!s}")
         else:
             state_path = _init_state_path()
@@ -424,17 +472,14 @@ def session_start(body: StartBody):
         elif starter_choice in ("bulbasaur", "charmander", "squirtle"):
             inject_starter(pyboy, starter_choice)
         # Speed: 0 = unlimited (no frame limit), 1 = 1x real-time, 2 = 2x, etc. Default 0 so game doesn't feel laggy.
-        speed = 0
-        if body.speed is not None:
-            if body.speed in (0, "unlimited", "max"):
-                speed = 0
-            elif isinstance(body.speed, int) and body.speed >= 1:
-                speed = min(body.speed, 8)
+        speed = _normalize_speed(body.speed)
         try:
             pyboy.set_emulation_speed(speed)
         except AttributeError:
             pass
+        session_id = _new_session_id()
         rec = {
+            "session_id": session_id,
             "pyboy": pyboy,
             "player_name": player_name,
             "started_at": time.time(),
@@ -450,7 +495,7 @@ def session_start(body: StartBody):
         _touch_session(rec)
         with _sessions_lock:
             sessions[agent_id] = rec
-        out = {"ok": True, "agent_id": agent_id}
+        out = {"ok": True, "agent_id": agent_id, "session_id": session_id}
         if init_state_used:
             out["init_state"] = init_state_used
         if starter_choice in ("bulbasaur", "charmander", "squirtle"):
@@ -520,7 +565,13 @@ def session_step(agent_id: str, body: StepBody):
         feedback = compute_step_feedback(name, state_before, state_after)
         rec["last_step_at"] = time.time()
         response_state = _compact_state_payload(state_after) if body.compact else state_after
-        return {"ok": True, "action": name, "state": response_state, "feedback": feedback}
+        return {
+            "ok": True,
+            "session_id": rec.get("session_id"),
+            "action": name,
+            "state": response_state,
+            "feedback": feedback,
+        }
 
 
 @app.post("/session/{agent_id}/actions")
@@ -532,41 +583,58 @@ def session_actions(agent_id: str, body: ActionsBody):
     with _session_guard(agent_id, touch=True) as rec:
         pyboy = rec["pyboy"]
         started_at = rec.get("started_at")
-        run_speed = body.speed if body.speed is not None else rec.get("speed", 1)
+        run_speed = _normalize_speed(body.speed if body.speed is not None else rec.get("speed", 1))
         if run_speed == 0:
             run_speed = 1  # still tick at least once per sub-step
         valid = set(ACTION_INDEX.keys())
+        invalid_actions: list[dict] = []
+        normalized_actions: list[str] = []
+        for i, raw in enumerate(body.actions):
+            name = (raw or "").strip().lower()
+            if name and name in valid:
+                normalized_actions.append(name)
+            else:
+                invalid_actions.append({"index": i, "value": raw})
+        if invalid_actions:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "Invalid actions in batch",
+                    "allowedActions": sorted(list(valid)),
+                    "invalidActions": invalid_actions,
+                },
+            )
+        if not normalized_actions:
+            raise HTTPException(status_code=400, detail="No valid actions provided")
         step_count = rec.setdefault("step_count", 0)
         recent = rec.setdefault("recent_actions", deque(maxlen=30))
         merged_effects: set[str] = set()
         last_feedback_message: str | None = None
         now = _now()
         try:
-            for i, a in enumerate(body.actions):
+            for i, name in enumerate(normalized_actions):
                 if i % 10 == 0:
                     _touch_session(rec, now=now)
-                name = (a or "").strip().lower()
-                if name and name in valid:
-                    state_before = get_game_state(pyboy, started_at)
-                    _run_one_action(pyboy, name, run_speed)
-                    state_after = get_game_state(pyboy, started_at)
-                    fb = compute_step_feedback(name, state_before, state_after)
-                    try:
-                        for eff in (fb.get("effects") or []):
-                            if isinstance(eff, str) and eff:
-                                merged_effects.add(eff)
-                        msg = fb.get("message")
-                        if isinstance(msg, str) and msg.strip():
-                            last_feedback_message = msg.strip()
-                    except Exception:
-                        pass
-                    step_count += 1
-                    recent.append({
-                        "step": step_count,
-                        "mapName": "",  # filled below
-                        "action": name,
-                        "ts": time.time(),
-                    })
+                state_before = get_game_state(pyboy, started_at)
+                _run_one_action(pyboy, name, run_speed)
+                state_after = get_game_state(pyboy, started_at)
+                fb = compute_step_feedback(name, state_before, state_after)
+                try:
+                    for eff in (fb.get("effects") or []):
+                        if isinstance(eff, str) and eff:
+                            merged_effects.add(eff)
+                    msg = fb.get("message")
+                    if isinstance(msg, str) and msg.strip():
+                        last_feedback_message = msg.strip()
+                except Exception:
+                    pass
+                step_count += 1
+                recent.append({
+                    "step": step_count,
+                    "mapName": "",  # filled below
+                    "action": name,
+                    "ts": time.time(),
+                })
                 now = _now()
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Batch actions failed: {e!s}")
@@ -574,7 +642,7 @@ def session_actions(agent_id: str, body: ActionsBody):
         rec["step_count"] = step_count
         state = get_game_state(pyboy, started_at)
         map_name = state.get("mapName", "?")
-        n = min(len([a for a in body.actions if (a or "").strip().lower() in valid]), len(recent))
+        n = min(len(normalized_actions), len(recent))
         for i in range(1, n + 1):
             recent[-i]["mapName"] = map_name
         if state.get("partySize", 0) == 0:
@@ -593,7 +661,9 @@ def session_actions(agent_id: str, body: ActionsBody):
             }
         return {
             "ok": True,
-            "actionsExecuted": len(body.actions),
+            "session_id": rec.get("session_id"),
+            "requestedActions": len(body.actions),
+            "actionsExecuted": len(normalized_actions),
             "state": response_state,
             **({"feedback": feedback} if feedback else {}),
         }
@@ -659,7 +729,7 @@ def session_heartbeat(agent_id: str):
         if not rec:
             raise HTTPException(status_code=404, detail="No session for this agent")
         _touch_session(rec)
-    return {"ok": True, "agent_id": agent_id}
+    return {"ok": True, "agent_id": agent_id, "session_id": rec.get("session_id")}
 
 
 @app.get("/session/{agent_id}/status")
@@ -680,12 +750,20 @@ def session_status(agent_id: str):
         step_count = rec.get("step_count", 0)
         speed = rec.get("speed", 0)
         player_name = rec.get("player_name", "Agent")
+        session_id = rec.get("session_id")
+        pending_stop = bool(rec.get("pending_stop"))
+        busy_count = int(rec.get("busy_count") or 0)
+        stop_reason = rec.get("stop_reason")
 
     now = _now()
     return {
         "ok": True,
         "agent_id": agent_id,
+        "session_id": session_id,
         "state": "running",
+        "pendingStop": pending_stop,
+        "busyCount": busy_count,
+        "stopReason": stop_reason,
         "ttlSeconds": SESSION_TTL_SECONDS,
         "reaperIntervalSeconds": SESSION_REAPER_INTERVAL_SECONDS,
         "startedAt": float(started_at) if started_at is not None else None,

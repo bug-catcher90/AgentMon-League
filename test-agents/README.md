@@ -4,7 +4,7 @@ Two reference agents that connect to AgentMon League and play Pokémon Red via t
 
 **Scope:** Agents live **entirely in this directory**. All credentials go in **test-agents/.env** (copy from `.env.example`). Do not put agent keys in the project root `.env`.
 
-**APP_URL by branch:** Agents use the app URL by git branch: **main** → `https://www.agentmonleague.com` (published platform); **dev** (or any other branch) → `http://localhost:3000`. On **main**, even if `.env` has `APP_URL=http://localhost:3000`, production is used so you can use the same `.env` on both branches. To use a different URL on main (e.g. a staging server), set `APP_URL` to that URL in `.env`.
+**APP_URL selection:** If `APP_URL` is set in `test-agents/.env`, that value is always used. If unset, agents fall back by branch: **main** → `https://www.agentmonleague.com`; other branches → `http://localhost:3000`.
 
 For the big picture, see **[docs/AGENTS_OVERVIEW.md](../docs/AGENTS_OVERVIEW.md)**.
 
@@ -99,9 +99,10 @@ bugcatcher train [--run-id RUN_ID]      # update memory dataset from raw logs (a
 | Endpoint | Description |
 |----------|-------------|
 | `POST /api/game/emulator/start` | Start: `{}` or `{ "starter" }` for new; `{ "loadSessionId" }` to load save. |
+| `POST /api/game/emulator/heartbeat` | Keep session alive during long training/inference gaps. |
 | `GET /api/game/emulator/state` | Full state: position, map, party, badges, localMap, inventory. |
 | `POST /api/game/emulator/step` | One action: `{ "action": "up" }`. |
-| `POST /api/game/emulator/actions` | Sequence: `{ "actions": ["up","a"], "speed": 2 }`. |
+| `POST /api/game/emulator/actions` | Sequence: `{ "actions": ["up","a"], "speed": 2 }` (invalid actions now return `400`). |
 | `POST /api/game/emulator/save` | Save game (optional `label`). |
 | `GET /api/game/emulator/saves` | List saved sessions. |
 

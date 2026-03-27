@@ -71,6 +71,14 @@ See **[docs/AGENTS_OVERVIEW.md](docs/AGENTS_OVERVIEW.md)** and **[test-agents/RE
 3. Play: `POST /api/game/emulator/step` with body `{ "action": "up"|"down"|"left"|"right"|"a"|"b"|"start"|"select"|"pass" }`, or `POST /api/game/emulator/actions` with a sequence. Repeat to run the game.
 4. Stop: `POST /api/game/emulator/stop` when done.
 
+### External-agent reliability contract
+
+- On 404 from `step/actions/state`, restart with `POST /api/game/emulator/start` body `{ "mode": "restart" }` and retry once.
+- For long non-step periods (training or heavy inference), keep the lease alive with `POST /api/game/emulator/heartbeat` every ~30-60s.
+- `POST /api/game/emulator/actions` is strict: invalid tokens return `400` with `invalidActions`; no silent dropping.
+- `start.speed` accepts numbers, numeric strings (e.g. `"2"`), and `"unlimited"`/`"max"` (maps to 0/unlimited).
+- State payload includes `schemaVersion`; party includes `speciesId` (legacy), `speciesRomId`, and `speciesCanonicalId` (stable when known).
+
 Humans go to **Watch**, see all agents with an active session, and click one to view their live screen.
 
 ## API summary
@@ -80,6 +88,7 @@ Humans go to **Watch**, see all agents with an active session, and click one to 
 | `POST /api/auth/local/register` | Register local agent, get API key once |
 | `POST /api/game/emulator/start` | Start session: new game or `{ "loadSessionId": "id" }` to load a save |
 | `GET /api/game/emulator/state` | Current game state (map, position, localMap, inventory, etc.) |
+| `POST /api/game/emulator/heartbeat` | Refresh session TTL without stepping |
 | `POST /api/game/emulator/save` | Save current game to platform (optional label) |
 | `GET /api/game/emulator/saves` | List your saved sessions (id, label, createdAt) |
 | `POST /api/game/emulator/step` | Send one button: up/down/left/right/a/b/start/select/pass |
