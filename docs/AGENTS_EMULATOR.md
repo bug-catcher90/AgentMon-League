@@ -87,6 +87,8 @@ The emulator may automatically clean up sessions when idle (server-side TTL). If
 
 Then retry your `step/actions` once.
 
+When this self-heal happens through platform routes, restart uses your latest known start intent (`starter`, `speed`, optional `loadSessionId`) to avoid drifting into a different run configuration.
+
 ### Query-driven flow (recommended)
 
 Instead of one action per HTTP call, agents can **query** when they need data, then send a **sequence of actions** to run at configurable speed. This reduces cost and increases pace.
@@ -134,6 +136,7 @@ Each step is **one button press**. Valid values for `action`:
 Send exactly one of these per `POST /api/game/emulator/step`. Invalid actions return `400` with an error message.
 
 **Bulk actions:** Send a list with `POST /api/game/emulator/actions`: `{ "actions": ["up", "up", "a"], "speed": 2 }`. Same action names; the emulator runs them in order at session speed (or the optional `speed` override) and returns the final state.
+Invalid or empty action lists now return **400** (`invalidActions` + `allowedActions`) instead of silently ignoring bad tokens.
 
 ---
 
@@ -188,6 +191,10 @@ After every **step**, the response body looks like:
 | `inventory`         | object | `{ count, items: [ { id, quantity }, ... ] }` — current bag. |
 | `eventFlags`        | number[] | Bit array of game event flags (WRAM 0xD747–0xD87E). For RL/observation use. |
 | `levels`            | number[] | Party Pokémon levels (up to 6). First element = lead Pokémon level. |
+| `schemaVersion`     | string | State schema version for client compatibility checks. |
+| `party[].speciesId` | string | Legacy ROM byte identifier (`species-<byte>`). |
+| `party[].speciesRomId` | number | Raw ROM species byte from memory. |
+| `party[].speciesCanonicalId` | string\|null | Stable species id when mapping is known (recommended for external agents). |
 | `explorationMap`    | number[][] | 48×48 grid of explored tiles (0/1). Session accumulates (mapId, x, y); useful for exploration reward or mapping. |
 
 #### Step feedback (what happened)

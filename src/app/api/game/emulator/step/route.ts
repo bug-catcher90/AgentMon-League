@@ -2,6 +2,7 @@ import { getAgentFromRequest } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { extractScreenTextFromImage } from "@/lib/screen-text";
 import { logLiveActivityFromStep } from "@/lib/live-activity";
+import { getEmulatorStartIntent } from "@/lib/emulator-session-intent";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
@@ -26,13 +27,14 @@ export async function POST(req: Request) {
     );
   }
 
-  let body: { action?: string };
+  let body: { action?: string; compact?: boolean };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
   const action = body.action?.toLowerCase() ?? "";
+  const compact = body.compact === true;
   const valid = ["up", "down", "left", "right", "a", "b", "start", "select", "pass"];
   if (!valid.includes(action)) {
     return NextResponse.json(
@@ -42,16 +44,53 @@ export async function POST(req: Request) {
   }
 
   try {
-    const stepRes = await fetch(`${EMULATOR_URL}/session/${agent.id}/step`, {
+    let stepRes = await fetch(`${EMULATOR_URL}/session/${agent.id}/step`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action }),
+      body: JSON.stringify({ action, compact }),
     });
-    const data = (await stepRes.json().catch(() => ({}))) as Record<string, unknown>;
+    let data = (await stepRes.json().catch(() => ({}))) as Record<string, unknown>;
+
+    // Self-heal: if emulator lost the session (404), restart and retry once.
+    if (!stepRes.ok && stepRes.status === 404) {
+      const agentKeyHeader = req.headers.get("X-Agent-Key") ?? "";
+      const moltbookHeader = req.headers.get("X-Moltbook-Identity") ?? "";
+      const intent = getEmulatorStartIntent(agent.id);
+      const restartHeaders: Record<string, string> = { "Content-Type": "application/json" };
+      if (agentKeyHeader) restartHeaders["X-Agent-Key"] = agentKeyHeader;
+      if (moltbookHeader) restartHeaders["X-Moltbook-Identity"] = moltbookHeader;
+      const origin = new URL(req.url).origin;
+      const restartRes = await fetch(`${origin}/api/game/emulator/start`, {
+        method: "POST",
+        headers: restartHeaders,
+        body: JSON.stringify({
+          mode: "restart",
+          ...(intent?.starter && { starter: intent.starter }),
+          ...(intent?.speed !== undefined && { speed: intent.speed }),
+          ...(intent?.loadSessionId && { loadSessionId: intent.loadSessionId }),
+        }),
+      });
+
+      if (restartRes.ok) {
+        stepRes = await fetch(`${EMULATOR_URL}/session/${agent.id}/step`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action, compact }),
+        });
+        data = (await stepRes.json().catch(() => ({}))) as Record<string, unknown>;
+      } else {
+        const restartData = (await restartRes.json().catch(() => ({}))) as Record<string, unknown>;
+        return NextResponse.json(
+          { error: (restartData.error as string) ?? (restartData.message as string) ?? "Failed to restart session" },
+          { status: restartRes.status }
+        );
+      }
+    }
+
     if (!stepRes.ok) {
       return NextResponse.json(
         { error: (data.detail as string) ?? "Emulator service error" },
-        { status: stepRes.status === 404 ? 404 : stepRes.status }
+        { status: stepRes.status }
       );
     }
 

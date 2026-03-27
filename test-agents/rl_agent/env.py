@@ -10,12 +10,12 @@ from gymnasium import Env, spaces
 from rl_agent.api_client import (
     get_frame,
     get_state,
-    run_action,
+    ping_session,
     run_action_with_auto_restart,
     start_session,
     stop_session,
 )
-from rl_agent.config import EPISODE_MAX_STEPS
+from rl_agent.config import EPISODE_MAX_STEPS, RL_SESSION_HEARTBEAT_SECONDS
 from rl_agent.obs_reward import (
     COORDS_PAD,
     ENC_FREQS,
@@ -68,39 +68,74 @@ class EmulatorEnv(Env):
         self._step = 0
         self._state_before: dict = {}
         self._visited_map_ids: set = set()
+        self._reward_memory: dict = {"max_pokeballs_seen": 0}
+        self._last_lease_touch: float = 0.0
+
+    def _wait_until_stopped(self, timeout_s: float = 6.0, poll_s: float = 0.2) -> bool:
+        deadline = time.time() + timeout_s
+        while time.time() < deadline:
+            status = get_status(self.agent_key) or {}
+            if str(status.get("state") or "").lower() == "stopped":
+                return True
+            time.sleep(poll_s)
+        return False
+
+    def _maybe_lease_ping(self) -> None:
+        """If wall-clock gap since last known lease touch is large, ping (covers PPO gaps + callback gaps)."""
+        now = time.time()
+        if now - self._last_lease_touch < RL_SESSION_HEARTBEAT_SECONDS * 0.85:
+            return
+        try:
+            ping_session(self.agent_key)
+        except Exception:
+            pass
+        self._last_lease_touch = now
+
+    def _fetch_frame_with_retry(self, agent_id: str, *, attempts: int = 15, delay_s: float = 0.5) -> bytes:
+        last_err: Exception | None = None
+        for _ in range(max(1, attempts)):
+            try:
+                return get_frame(agent_id)
+            except requests.exceptions.HTTPError as e:
+                last_err = e
+                code = e.response.status_code if e.response is not None else None
+                if code in (404, 502, 503, 504):
+                    time.sleep(delay_s)
+                    continue
+                raise
+            except Exception as e:
+                last_err = e
+                time.sleep(delay_s)
+                continue
+        raise RuntimeError(f"Could not fetch frame for agent {agent_id}") from last_err
 
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
         # End previous session so each episode is a fresh game (emulator only allows one session per agent)
+        still_running = False
         try:
             stop_session(self.agent_key)
+            still_running = not self._wait_until_stopped(timeout_s=6.0, poll_s=0.2)
         except Exception:
-            pass
+            # If stop fails (transient network/restart), force lifecycle reset via mode=restart.
+            still_running = True
         if self.load_session_id:
-            start_data = start_session(self.agent_key, load_session_id=self.load_session_id)
+            start_data = start_session(self.agent_key, load_session_id=self.load_session_id, mode="load")
+        elif still_running:
+            start_data = start_session(self.agent_key, starter=self.starter, mode="restart")
         else:
-            start_data = start_session(self.agent_key, starter=self.starter)
+            start_data = start_session(self.agent_key, starter=self.starter, mode="new")
         # Use agentId from start response (correct after DB reset when .env has stale AGENT_ID)
         self._session_agent_id = start_data.get("agentId") or self.agent_id
         self._step = 0
         self._recent_screens = np.zeros(OUTPUT_SHAPE, dtype=np.uint8)
         self._recent_actions = np.zeros(3, dtype=np.int8)
         self._visited_map_ids = set()
+        self._reward_memory = {"max_pokeballs_seen": 0}
+        self._last_lease_touch = time.time()
         state = get_state(self.agent_key) or {}
         self._state_before = state
-        # Retry get_frame: emulator may return 404 briefly after start_session
-        frame_bytes = None
-        for attempt in range(15):
-            try:
-                frame_bytes = get_frame(self._session_agent_id)
-                break
-            except requests.exceptions.HTTPError as e:
-                if e.response is not None and e.response.status_code == 404 and attempt < 14:
-                    time.sleep(0.5)
-                    continue
-                raise
-        if frame_bytes is None:
-            raise RuntimeError("Could not get frame after start. Is the emulator running?")
+        frame_bytes = self._fetch_frame_with_retry(self._session_agent_id)
         obs = build_obs_from_frame_and_state(
             frame_bytes, state, self._recent_screens, self._recent_actions
         )
@@ -114,28 +149,51 @@ class EmulatorEnv(Env):
         self._recent_actions = np.roll(self._recent_actions, 1)
         self._recent_actions[0] = action
 
+        self._maybe_lease_ping()
         result = run_action_with_auto_restart(self.agent_key, action_name, starter=self.starter)
         state_after = result.get("state") or {}
         self._step += 1
+        did_restart = bool(result.get("_session_restarted"))
+        restarted_agent_id = result.get("_restarted_agent_id")
+        if did_restart:
+            # If the emulator restarted mid-episode, avoid computing reward deltas
+            # against pre-restart state (which would corrupt PPO training signal).
+            if restarted_agent_id:
+                self._session_agent_id = str(restarted_agent_id)
+            self._visited_map_ids = set()
+            self._recent_screens = np.zeros(OUTPUT_SHAPE, dtype=np.uint8)
+            self._recent_actions = np.zeros(3, dtype=np.int8)
+            self._recent_actions[0] = int(action)
+            self._reward_memory = {"max_pokeballs_seen": 0}
+            state_before_for_reward = state_after
+        else:
+            state_before_for_reward = self._state_before
 
         reward = compute_reward(
-            self._state_before,
+            state_before_for_reward,
             state_after,
             step_penalty=True,
             visited_map_ids=self._visited_map_ids,
+            reward_memory=self._reward_memory,
         )
         map_after = state_after.get("mapId")
-        if map_after is not None and map_after in (41, 42, 55):
+        if map_after is not None:
+            # Track all visited maps in this episode so exploration-map reward
+            # is granted once per map, not per doorway transition.
             self._visited_map_ids.add(map_after)
         self._state_before = state_after
+        self._last_lease_touch = time.time()
 
         agent_id = self._session_agent_id or self.agent_id
         # Use frame from actions response when present (saves one round-trip in prod).
         b64 = result.get("frameBase64")
         if b64:
-            frame_bytes = base64.b64decode(b64)
+            try:
+                frame_bytes = base64.b64decode(b64)
+            except Exception:
+                frame_bytes = self._fetch_frame_with_retry(agent_id, attempts=6, delay_s=0.3)
         else:
-            frame_bytes = get_frame(agent_id)
+            frame_bytes = self._fetch_frame_with_retry(agent_id, attempts=6, delay_s=0.3)
         obs = build_obs_from_frame_and_state(
             frame_bytes, state_after, self._recent_screens, self._recent_actions
         )
@@ -143,5 +201,5 @@ class EmulatorEnv(Env):
 
         terminated = False
         truncated = self._step >= self._episode_max_steps
-        info = {"state": state_after, "step": self._step}
+        info = {"state": state_after, "step": self._step, "restarted": did_restart}
         return obs, float(reward), terminated, truncated, info

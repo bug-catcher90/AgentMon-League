@@ -5,6 +5,10 @@ import { NextResponse } from "next/server";
 
 const EMULATOR_URL = process.env.EMULATOR_URL ?? "http://127.0.0.1:8765";
 
+function asFiniteNumber(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
 /**
  * POST /api/game/emulator/stop
  * End the authenticated agent's emulator session. Adds this session's playtime to profile.totalPlaytimeSeconds.
@@ -27,20 +31,24 @@ export async function POST(req: Request) {
       if (stateRes.ok) {
         const state = (await stateRes.json().catch(() => ({}))) as Record<string, unknown>;
         emulatorStateSnapshot = state;
-        sessionTimeSeconds = (state.sessionTimeSeconds as number) ?? 0;
-        pokedexOwned = (state.pokedexOwned as number) ?? 0;
-        pokedexSeen = (state.pokedexSeen as number) ?? 0;
+        sessionTimeSeconds = asFiniteNumber(state.sessionTimeSeconds, 0);
+        pokedexOwned = asFiniteNumber(state.pokedexOwned, 0);
+        pokedexSeen = asFiniteNumber(state.pokedexSeen, 0);
         badgesCount = typeof state.badges === "number" ? state.badges : (Array.isArray(state.badges) ? (state.badges as unknown[]).length : 0);
-        const levels = (state.levels as number[]) ?? [];
+        const levels = Array.isArray(state.levels) ? (state.levels as unknown[]).filter((v) => typeof v === "number" && Number.isFinite(v)) as number[] : [];
         maxLevel = levels.length > 0 ? Math.max(1, ...levels) : 1;
       }
     } catch {
       // ignore
     }
 
-    await fetch(`${EMULATOR_URL}/session/${agent.id}/stop`, {
+    const stopRes = await fetch(`${EMULATOR_URL}/session/${agent.id}/stop`, {
       method: "POST",
     });
+    if (!stopRes.ok) {
+      const text = await stopRes.text().catch(() => "");
+      throw new Error(`Emulator stop failed: ${stopRes.status} ${text}`);
+    }
 
     const now = new Date().toISOString();
     await prisma.eventLog.create({
@@ -146,7 +154,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ ok: true, message: "Service unreachable" });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Emulator stop failed";
+    return NextResponse.json({ ok: false, error: message }, { status: 502 });
   }
 }
